@@ -1,0 +1,60 @@
+# CXP SKU inheritance — mirrors the .eco/sku-inheritance.yaml convention
+# used elsewhere in this portfolio. See docs/architecture/sku-model.md
+# for the full explanation and the capability-to-module mapping table.
+#
+# Status: draft — no enforcement code reads this file yet. It documents
+# the intended shape so implementation has a single source to build
+# against, the same role .eco/sku-inheritance.yaml plays for eco.
+
+inheritance_rules:
+  cxp-community:
+    inherits_from: []
+    provides:
+      - core
+      - roster
+      - plays
+      - practice
+      - drills
+      - basic_export
+
+  cxp-coach-pro:
+    inherits_from:
+      - cxp-community
+    extends:
+      - player_development
+      - eco_ai_assistant
+      - advanced_export
+      - custom_branding
+      - advanced_statistics
+
+  cxp-team:
+    inherits_from:
+      - cxp-coach-pro
+    extends:
+      - assistant_coaches
+      - parent_portal
+      - communications
+      - shared_calendars
+      - shared_playbooks
+
+  cxp-club:
+    inherits_from:
+      - cxp-team
+    extends:
+      - multi_team_administration
+      - coach_development
+      - marketplace
+      - finance
+      - travel
+      - organization_reporting
+      - power_bi_bridge
+
+  cxp-enterprise:
+    inherits_from:
+      - cxp-club
+    extends:
+      - dedicated_tenant
+      - custom_semantic_models
+      - regional_reporting
+      - advanced_integrations
+      - custom_retention_and_governance

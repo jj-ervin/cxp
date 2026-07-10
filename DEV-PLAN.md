@@ -36,8 +36,11 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | Scoping capture (`CXP-OVERVIEW.md`) | — | — | ✅ |
 | Repo scaffold + GC bootstrap | — | — | ✅ |
 | Architecture week (`docs/architecture/*.md`) | pre-v0.1 | — | ✅ |
-| Flutter project skeleton | pre-v0.1 | — | ✅ |
+| Flutter project skeleton (web + windows) | pre-v0.1 | — | ✅ |
+| All six Flutter platform targets scaffolded | pre-v0.1 | — | ✅ |
 | Court editor prototype (single frame, drag-and-drop) | pre-v0.1 | — | ✅ |
+| Domain-agnostic Core / Vertical Pack split | pre-v0.1 | — | ✅ |
+| SKU model | pre-v0.1 | — | ✅ |
 | Basketball MVP (routes, frames, play DB, PDF export) | v0.1 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
@@ -51,11 +54,18 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 | CXP.06 | Route/path drawing (pass, cut, screen, shot) on the court editor | — | P0 |
 | CXP.03 | Flutter `CustomPainter` performance spike for multi-frame animated plays | — | P1 |
 | CXP.07 | Multi-frame sequencing (frame list + generated transitions) | — | P1 |
+| CXP.11 | Wire SKU enforcement into Core's authorization layer | — | P2 (blocked on Core existing) |
 
 ---
 
 ## RECENTLY COMPLETED
 
+- CXP.08 — Added macOS/Linux/Android/iOS Flutter platform targets;
+  all six now scaffolded (2026-07-10)
+- CXP.09 — Domain-agnostic Core / Coaching Vertical Pack split —
+  `domain-model.md`, `module-boundaries.md` revised (2026-07-10)
+- CXP.10 — SKU model: `sku-model.md`, `sku-inheritance.yaml`, formalizing
+  pricing tiers as inheritable SKUs (2026-07-10)
 - CXP.04 — Basketball court editor prototype: 5v5 drag-and-drop,
   tap-to-select vs. pan-to-move, `flutter analyze`/`flutter test` clean
   (2026-07-10)

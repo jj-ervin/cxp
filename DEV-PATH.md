@@ -170,6 +170,62 @@ implementation.
 
 ---
 
+### Phase 2 — Domain-agnostic Core + full platform target set (2026-07-10)
+
+**Goal:** Resolve two open questions raised directly by the user before
+more module code gets built on top of assumptions: (1) how domain-agnostic
+should CXP's Core actually be, and (2) which platforms does the Flutter
+client target. Both were decided by explicit user choice, not inferred.
+
+**Key decisions:**
+
+- **Full generic core + coaching vertical** (user's explicit choice over
+  "keep coaching-specific, revisit later"). CXP's core is now formally
+  domain-agnostic, mirroring `eco`'s `eco-core` → `eco-edu`/`eco-health`/...
+  SKU model (`.eco/sku-inheritance.yaml`). `domain-model.md` was revised:
+  `Organization`, `Cycle` (was "Season"), `Group`, `Member`,
+  `MemberSensitive`, `Communication`, `Audit`, and `OwnershipRecord` are
+  now `cxp-core` (domain-agnostic); `Team extends Group` and
+  `Player extends Member` are `cxp-coaching` (the first Vertical Pack).
+  Table names were deliberately **not** renamed away from coaching-familiar
+  terms — the generic entity is real in Core, the coaching vertical
+  extends it, rather than a wholesale rename churn with only one vertical
+  to design against.
+- **All six Flutter platform targets now** (user's explicit choice over
+  "add platforms as we can test them"): `flutter create
+  --platforms=macos,linux,android,ios` added the remaining platform
+  folders alongside the existing web+windows scaffold. Only web is
+  actually runnable/testable on this machine today (no Visual Studio C++
+  workload, no Android SDK, no macOS/Linux toolchain) — the folders exist
+  and compile-target correctly whenever those toolchains are available.
+- **SKU model formalized**: `docs/architecture/sku-model.md` +
+  `sku-inheritance.yaml` (repo root, mirrors `.eco/sku-inheritance.yaml`'s
+  location/format) turn `CXP-OVERVIEW.md`'s pricing tiers into named SKUs
+  (`cxp-community` → `cxp-coach-pro` → `cxp-team` → `cxp-club` →
+  `cxp-enterprise`) with an inheritance chain and a capability-to-module
+  mapping table. SKU tiers and Verticals are explicitly orthogonal:
+  `Organization.vertical` picks the Vertical Pack, `Organization.tier`
+  picks the SKU within that vertical's own ladder.
+- `module-boundaries.md` revised to show the internal Core → Vertical
+  Pack → Sport Pack layering (previously it only showed the external
+  eco.ai/Cockpit/CXP split) and to tag every module in the inventory
+  table with which layer it belongs to.
+
+**Completed:**
+
+- CXP.08 — Added macOS/Linux/Android/iOS Flutter platform targets
+- CXP.09 — Domain-agnostic Core / Coaching Vertical Pack split
+  (`domain-model.md`, `module-boundaries.md` revised)
+- CXP.10 — SKU model (`sku-model.md`, `sku-inheritance.yaml`)
+
+**Carried forward:**
+
+- CXP.03, CXP.06, CXP.07 (unchanged from Phase 1)
+- CXP.11 — No enforcement code reads `sku-inheritance.yaml` yet; it's a
+  design artifact until the Core module's authorization layer is built
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -180,6 +236,12 @@ implementation.
 | CXP.03 | Flutter `CustomPainter` performance spike | planned | 1 | Multi-frame animated play rendering — unvalidated risk |
 | CXP.04 | Basketball court editor prototype | done | 1 | `lib/features/court_editor/` — single frame, 5v5 drag-and-drop, tap-to-select; `flutter analyze`/`flutter test` clean |
 | CXP.05 | Flutter project skeleton | done | 1 | web+windows targets, org com.twentyamplabs, `flutter analyze` clean |
+| CXP.06 | Route/path drawing on court editor | planned | 1 | Pass/cut/screen/shot on top of existing drag-and-drop |
+| CXP.07 | Multi-frame sequencing | planned | 1 | Frame list + generated transitions |
+| CXP.08 | Add macOS/Linux/Android/iOS platform targets | done | 2 | Folders scaffolded; only web currently buildable on this machine |
+| CXP.09 | Domain-agnostic Core / Vertical Pack split | done | 2 | `domain-model.md`, `module-boundaries.md` revised |
+| CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |
+| CXP.11 | Wire SKU enforcement into Core's authorization layer | planned | — | Blocked on Core module implementation existing at all |
 
 Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` · `unknown_needs_audit`
 
