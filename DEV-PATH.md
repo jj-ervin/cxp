@@ -267,6 +267,63 @@ sequencing) build on an unvalidated rendering approach.
 
 ---
 
+### Phase 4 — Route drawing (2026-07-10)
+
+**Goal:** Add route/path drawing (pass, dribble, cut, screen, shot,
+defense) to the court editor without breaking the select/move
+interaction CXP.04 already validated.
+
+**Key decisions:**
+
+- **Mode toggle, not gesture disambiguation on the same tokens.**
+  `ux-philosophy.md` flags select-vs-move-vs-draw as the hardest
+  interaction problem in this editor; rather than trying to infer intent
+  from a single gesture stream, the prototype adds an explicit
+  Select/Move ↔ Draw Route mode switch (`SegmentedButton`), the same
+  pattern most pro diagram tools (Figma, Illustrator) use for a select
+  tool vs. a pen tool. This is stated as a deliberate simplification, not
+  a final answer — a future pass could attempt true gesture
+  disambiguation within one mode.
+- **`ActorPath` lives in Core's sport-neutral model** (`play_frame.dart`),
+  matching `domain-model.md`'s `PlayFrame.paths` shape
+  (`actor_id`/`type`/`points`) exactly. Styling per `PathType` (color,
+  solid/dashed, arrowhead/screen-bar/none) is basketball-sport-pack-owned,
+  living in `basketball_court_painter.dart`'s new
+  `BasketballPathsPainter` — the core canvas still has no opinion on what
+  a path "means," per `plugin-architecture.md`.
+- Every path is a straight 2-point segment for this prototype — curved
+  paths are deferred, but `ActorPath.points` is a list (not a fixed pair)
+  so a curved-path upgrade doesn't require a schema change later.
+- Drawing works by dragging from an actor's *rendered position* (nearest-
+  actor hit test within a threshold), not by first tapping to "arm" a
+  start actor — one drag gesture per path, consistent with the "drag a
+  saved play or drill directly into a timeline" interaction style
+  described in `CXP-OVERVIEW.md`.
+- **Hit a real Flutter constraint mid-implementation:** wrapping
+  `Positioned` widgets in `IgnorePointer` from the *outside* (to disable
+  tokens while in Draw mode) throws — `Positioned` must be a direct
+  `Stack` child. Fixed by moving `IgnorePointer` *inside* `_ActorToken`,
+  wrapping only the `GestureDetector`. Logged here because it's a
+  non-obvious Flutter framework constraint future work on this screen
+  needs to remember.
+
+**Completed:**
+
+- CXP.06 — Route/path drawing: `ActorPath`/`PathType` model,
+  `BasketballPathsPainter` (pass/dribble/cut/screen/shot/defense styling
+  with arrowheads and a screen-bar symbol), mode-toggle UI, undo-last-path,
+  Reset now also clears paths. `flutter analyze` clean; 7/7 tests passing
+  (3 new: mode-switch reveals picker, drag-to-draw enables undo, Reset
+  clears paths).
+
+**Carried forward:**
+
+- CXP.07 — Multi-frame sequencing (unchanged from Phase 1)
+- CXP.13 — Curved path rendering (currently straight-line only)
+- CXP.14 — Per-path delete/edit (currently only whole-list undo/clear)
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -277,8 +334,10 @@ sequencing) build on an unvalidated rendering approach.
 | CXP.03 | Flutter `CustomPainter` performance spike | done (functional only) | 1 | `lib/features/court_editor/animation_perf_spike_screen.dart` — see `docs/architecture/perf-spike-cxp03.md`; real-device/release-mode profiling still outstanding |
 | CXP.04 | Basketball court editor prototype | done | 1 | `lib/features/court_editor/` — single frame, 5v5 drag-and-drop, tap-to-select; `flutter analyze`/`flutter test` clean |
 | CXP.05 | Flutter project skeleton | done | 1 | web+windows targets, org com.twentyamplabs, `flutter analyze` clean |
-| CXP.06 | Route/path drawing on court editor | planned | 1 | Pass/cut/screen/shot on top of existing drag-and-drop |
+| CXP.06 | Route/path drawing on court editor | done | 4 | `ActorPath`/`PathType`, `BasketballPathsPainter`, mode toggle, undo; `flutter analyze`/`flutter test` clean (7/7) |
 | CXP.07 | Multi-frame sequencing | planned | 1 | Frame list + generated transitions |
+| CXP.13 | Curved path rendering | planned | 4 | Straight-line only today; `ActorPath.points` shape allows this later |
+| CXP.14 | Per-path delete/edit | planned | 4 | Only whole-list undo/clear exists today |
 | CXP.08 | Add macOS/Linux/Android/iOS platform targets | done | 2 | Folders scaffolded; only web currently buildable on this machine |
 | CXP.09 | Domain-agnostic Core / Vertical Pack split | done | 2 | `domain-model.md`, `module-boundaries.md` revised |
 | CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |

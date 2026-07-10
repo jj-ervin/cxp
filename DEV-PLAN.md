@@ -42,7 +42,8 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | Domain-agnostic Core / Vertical Pack split | pre-v0.1 | — | ✅ |
 | SKU model | pre-v0.1 | — | ✅ |
 | Animation perf spike (functional; real-device profiling outstanding) | pre-v0.1 | — | 🔄 |
-| Basketball MVP (routes, frames, play DB, PDF export) | v0.1 | — | ⬜ |
+| Route/path drawing (straight lines, 6 types) | pre-v0.1 | — | ✅ |
+| Basketball MVP (frames, play DB, PDF export) | v0.1 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
@@ -52,15 +53,20 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| CXP.06 | Route/path drawing (pass, cut, screen, shot) on the court editor | — | P0 |
-| CXP.07 | Multi-frame sequencing (frame list + generated transitions) | — | P1 |
+| CXP.07 | Multi-frame sequencing (frame list + generated transitions) | — | P0 |
 | CXP.12 | Real-device/release-mode profiling of animation perf spike | — | P1 (blocked on device/toolchain access) |
+| CXP.13 | Curved path rendering | — | P2 |
+| CXP.14 | Per-path delete/edit | — | P2 |
 | CXP.11 | Wire SKU enforcement into Core's authorization layer | — | P2 (blocked on Core existing) |
 
 ---
 
 ## RECENTLY COMPLETED
 
+- CXP.06 — Route/path drawing: pass/dribble/cut/screen/shot/defense path
+  types with distinct styling, mode-toggle interaction (Select/Move vs.
+  Draw Route), undo-last-path; `flutter analyze` clean, 7/7 tests passing
+  (2026-07-10)
 - CXP.03 — Animation perf spike: functional pass, `docs/architecture/
   perf-spike-cxp03.md` documents findings and what's still unvalidated
   (2026-07-10)

@@ -4,6 +4,8 @@
 /// (see `docs/architecture/plugin-architecture.md`).
 library;
 
+import 'dart:ui' show Offset;
+
 enum ActorSide { offense, defense }
 
 class CourtActor {
@@ -80,6 +82,31 @@ List<CourtActor> lerpFrame(List<CourtActor> a, List<CourtActor> b, double t) {
         y: a[i].y + (b[i].y - a[i].y) * t,
       ),
   ];
+}
+
+/// Basketball sport pack path types (see plugin-architecture.md's
+/// `symbols.path_types`). Curved-vs-straight rendering variants per type
+/// are a later refinement — CXP.06's prototype draws every path as a
+/// straight segment between two points.
+enum PathType { pass, dribble, cut, screen, shot, defense }
+
+/// Sport-neutral shell matching `PlayFrame.paths` in the domain model:
+/// `{ actor_id, type, points, style }`. `style` is not a separate field
+/// here — the basketball sport pack derives rendering style from [type]
+/// (see `basketball_court_painter.dart`'s path-drawing companion).
+class ActorPath {
+  const ActorPath({required this.actorId, required this.type, required this.points});
+
+  /// The actor this path originates from — matches `CourtActor.id`.
+  final String actorId;
+
+  final PathType type;
+
+  /// Fractional coordinates in `[0.0, 1.0]`, same coordinate space as
+  /// `CourtActor.x`/`y`. At least 2 points; this prototype only ever
+  /// produces exactly 2 (a straight segment), but the shape allows more
+  /// for a future curved-path upgrade without a schema change.
+  final List<Offset> points;
 }
 
 /// CXP.03 perf-spike input: generates [frameCount] frames of the default
