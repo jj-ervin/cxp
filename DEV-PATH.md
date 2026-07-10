@@ -324,6 +324,61 @@ interaction CXP.04 already validated.
 
 ---
 
+### Phase 5 — Multi-frame sequencing (2026-07-10)
+
+**Goal:** Let a play have more than one frame, with the engine generating
+motion between them for playback — the last of the four "make basketball
+MVP exceptional" pillars named in `CXP-OVERVIEW.md` (court editor, frame
+animation, play database, PDF export) still outstanding on the editor
+side.
+
+**Key decisions:**
+
+- **`PlayFrameData` bundles actors + paths per frame**, and paths are
+  explicitly *not* carried forward when a frame is duplicated — a coach
+  adding Frame 2 gets the previous frame's player positions (a sensible
+  starting point to then move players from) but a blank canvas for new
+  diagram annotations, since a pass drawn in Frame 1 doesn't mean
+  anything in Frame 2's context. This is stated as a deliberate modeling
+  choice in code comments, not an oversight.
+- **Playback animates actor motion only — paths are not animated.**
+  Reinforces the frames-plus-generated-transitions model from
+  `ux-philosophy.md`: the engine interpolates positions between frames,
+  but a drawn route is a teaching annotation for a specific frame, not a
+  motion path to be traced by the animation.
+- **Extracted `actorsAtSequenceProgress()`** from the CXP.03 perf-spike
+  screen into the shared model file so CXP.03 (stress-test frames, timing
+  instrumentation) and CXP.07 (real play frames, play/pause/restart
+  controls, no instrumentation) share one implementation of "which
+  segment, how far into it" instead of duplicating the math.
+- **Frame UI:** horizontal chip row (`Frame 1`, `Frame 2`, ...) to select,
+  `+` to add (duplicate-and-append-after-current), a trash icon to delete
+  the current frame (disabled when only one frame remains — a play always
+  has at least one frame). `Reset` collapses back to a single default
+  frame, matching its existing "wipe everything" semantics from CXP.04.
+
+**Completed:**
+
+- CXP.07 — Multi-frame sequencing: `PlayFrameData`,
+  `actorsAtSequenceProgress()` (shared with CXP.03),
+  `FramePlaybackScreen` (play/pause/restart, no timing instrumentation),
+  frame chip row with add/delete/select. `flutter analyze` clean; 14/14
+  tests passing (7 new for frame add/delete/select/duplicate-semantics/
+  playback).
+
+**Carried forward:**
+
+- CXP.13 — Curved path rendering
+- CXP.14 — Per-path delete/edit
+- CXP.15 — Local play persistence (play database) — nothing survives an
+  app restart yet; this and CXP.16 are the remaining pieces of the
+  `CXP-OVERVIEW.md` v0.1 MVP definition
+- CXP.16 — PDF/PNG/SVG playbook export
+- CXP.12 — Real-device/release-mode profiling (unchanged, still blocked
+  on device/toolchain access)
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -336,8 +391,11 @@ interaction CXP.04 already validated.
 | CXP.05 | Flutter project skeleton | done | 1 | web+windows targets, org com.twentyamplabs, `flutter analyze` clean |
 | CXP.06 | Route/path drawing on court editor | done | 4 | `ActorPath`/`PathType`, `BasketballPathsPainter`, mode toggle, undo; `flutter analyze`/`flutter test` clean (7/7) |
 | CXP.07 | Multi-frame sequencing | planned | 1 | Frame list + generated transitions |
+| CXP.07 | Multi-frame sequencing | done | 5 | `PlayFrameData`, `FramePlaybackScreen`, frame chip row; `flutter analyze`/`flutter test` clean (14/14) |
 | CXP.13 | Curved path rendering | planned | 4 | Straight-line only today; `ActorPath.points` shape allows this later |
 | CXP.14 | Per-path delete/edit | planned | 4 | Only whole-list undo/clear exists today |
+| CXP.15 | Local play persistence (play database) | planned | 5 | Nothing survives an app restart yet |
+| CXP.16 | PDF/PNG/SVG playbook export | planned | 5 | Last v0.1 MVP piece per `CXP-OVERVIEW.md` |
 | CXP.08 | Add macOS/Linux/Android/iOS platform targets | done | 2 | Folders scaffolded; only web currently buildable on this machine |
 | CXP.09 | Domain-agnostic Core / Vertical Pack split | done | 2 | `domain-model.md`, `module-boundaries.md` revised |
 | CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |

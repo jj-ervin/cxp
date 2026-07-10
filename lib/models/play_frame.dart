@@ -109,6 +109,43 @@ class ActorPath {
   final List<Offset> points;
 }
 
+/// Given [frames] (>= 1 frame) and a global [progress] across the whole
+/// sequence in `[0.0, 1.0]`, returns the interpolated actor positions.
+/// Shared by CXP.03's perf spike and CXP.07's frame playback so the
+/// "which segment, how far into it" math exists in exactly one place.
+List<CourtActor> actorsAtSequenceProgress(List<List<CourtActor>> frames, double progress) {
+  assert(frames.isNotEmpty, 'actorsAtSequenceProgress requires at least one frame');
+  if (frames.length == 1) return frames.first;
+  final segment = progress * (frames.length - 1);
+  final index = segment.floor().clamp(0, frames.length - 2);
+  final t = segment - index;
+  return lerpFrame(frames[index], frames[index + 1], t);
+}
+
+/// A single editable frame in a play: the actor positions at this point
+/// in the sequence, plus the coaching-notation paths drawn *at* this
+/// frame (a cut, pass, or screen a coach is diagramming here). Paths are
+/// per-frame annotations, not animation drivers — see
+/// `docs/architecture/ux-philosophy.md`'s frames-plus-generated-
+/// transitions model: the engine interpolates `actors` between frames
+/// for playback, but does not attempt to animate a drawn path.
+class PlayFrameData {
+  const PlayFrameData({required this.actors, this.paths = const []});
+
+  final List<CourtActor> actors;
+  final List<ActorPath> paths;
+
+  PlayFrameData copyWith({List<CourtActor>? actors, List<ActorPath>? paths}) {
+    return PlayFrameData(actors: actors ?? this.actors, paths: paths ?? this.paths);
+  }
+}
+
+/// A new play starts as a single frame with the default 5v5 set and no
+/// drawn paths yet.
+List<PlayFrameData> defaultPlayFrames() {
+  return [PlayFrameData(actors: defaultBasketballFrame())];
+}
+
 /// CXP.03 perf-spike input: generates [frameCount] frames of the default
 /// 5v5 basketball set, each frame reshuffling every actor's position, so
 /// the animation has to interpolate all 10 actors simultaneously on every

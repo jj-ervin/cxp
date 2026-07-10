@@ -74,13 +74,6 @@ class _AnimationPerfSpikeScreenState extends State<AnimationPerfSpikeScreen>
     super.dispose();
   }
 
-  List<CourtActor> _actorsAt(double progress) {
-    final segment = progress * (_frames.length - 1);
-    final index = segment.floor().clamp(0, _frames.length - 2);
-    final t = segment - index;
-    return lerpFrame(_frames[index], _frames[index + 1], t);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -111,7 +104,9 @@ class _AnimationPerfSpikeScreenState extends State<AnimationPerfSpikeScreen>
                         builder: (context, _) {
                           return CustomPaint(
                             size: courtSize,
-                            painter: _StressPainter(actors: _actorsAt(_controller.value)),
+                            painter: _StressPainter(
+                              actors: actorsAtSequenceProgress(_frames, _controller.value),
+                            ),
                           );
                         },
                       );

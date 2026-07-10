@@ -3,19 +3,28 @@ import 'package:flutter/material.dart';
 import '../../models/play_frame.dart';
 import 'animation_perf_spike_screen.dart';
 import 'basketball_court_painter.dart';
+import 'frame_playback_screen.dart';
 
 enum _EditorMode { select, draw }
 
-/// CXP.04/CXP.06 — basketball court editor prototype.
+/// CXP.04/CXP.06/CXP.07 — basketball court editor prototype.
 ///
-/// CXP.04 scope: drag-and-drop players on a single frame (select/move).
-/// CXP.06 adds route drawing (pass/dribble/cut/screen/shot/defense) as a
+/// CXP.04: drag-and-drop players on a single frame (select/move).
+/// CXP.06: route drawing (pass/dribble/cut/screen/shot/defense) as a
 /// distinct **mode**, not a gesture disambiguated on the same tokens —
 /// `docs/architecture/ux-philosophy.md` flags select-vs-move-vs-draw as
 /// the hardest interaction problem in this editor; a mode toggle (the
 /// same pattern most pro diagram tools use — a "select tool" vs. a "pen
 /// tool") is the deliberately simple first answer, not the final one.
-/// Still no multi-frame animation, save, or export.
+/// CXP.07: multiple frames. Adding a frame duplicates the current frame's
+/// actor positions (a coach places players, adds a frame, moves them) but
+/// *not* its drawn paths — paths are per-frame coaching annotations, not
+/// carried motion (see `PlayFrameData`'s doc comment in `play_frame.dart`).
+/// "Play" pushes `FramePlaybackScreen`, which interpolates actor motion
+/// between frames using the same `actorsAtSequenceProgress` helper the
+/// CXP.03 perf spike uses.
+///
+/// Still no save/export/play-database persistence.
 class CourtEditorScreen extends StatefulWidget {
   const CourtEditorScreen({super.key});
 
@@ -24,28 +33,42 @@ class CourtEditorScreen extends StatefulWidget {
 }
 
 class _CourtEditorScreenState extends State<CourtEditorScreen> {
-  late List<CourtActor> _actors = defaultBasketballFrame();
-  String? _selectedActorId;
+  late List<PlayFrameData> _frames = defaultPlayFrames();
+  int _currentFrameIndex = 0;
 
+  String? _selectedActorId;
   _EditorMode _mode = _EditorMode.select;
   PathType _drawPathType = PathType.pass;
-  final List<ActorPath> _paths = [];
 
   String? _dragStartActorId;
   List<Offset> _previewPoints = const [];
 
-  void _onPanUpdate(String actorId, DragUpdateDetails details, Size courtSize) {
+  List<CourtActor> get _actors => _frames[_currentFrameIndex].actors;
+  List<ActorPath> get _paths => _frames[_currentFrameIndex].paths;
+
+  void _updateCurrentFrame(PlayFrameData Function(PlayFrameData frame) update) {
     setState(() {
-      _actors = [
-        for (final actor in _actors)
-          if (actor.id == actorId)
-            actor.copyWith(
-              x: (actor.x + details.delta.dx / courtSize.width).clamp(0.0, 1.0),
-              y: (actor.y + details.delta.dy / courtSize.height).clamp(0.0, 1.0),
-            )
-          else
-            actor,
+      _frames = [
+        for (var i = 0; i < _frames.length; i++)
+          if (i == _currentFrameIndex) update(_frames[i]) else _frames[i],
       ];
+    });
+  }
+
+  void _onPanUpdate(String actorId, DragUpdateDetails details, Size courtSize) {
+    _updateCurrentFrame((frame) {
+      return frame.copyWith(
+        actors: [
+          for (final actor in frame.actors)
+            if (actor.id == actorId)
+              actor.copyWith(
+                x: (actor.x + details.delta.dx / courtSize.width).clamp(0.0, 1.0),
+                y: (actor.y + details.delta.dy / courtSize.height).clamp(0.0, 1.0),
+              )
+            else
+              actor,
+        ],
+      );
     });
   }
 
@@ -57,9 +80,9 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
 
   void _reset() {
     setState(() {
-      _actors = defaultBasketballFrame();
+      _frames = defaultPlayFrames();
+      _currentFrameIndex = 0;
       _selectedActorId = null;
-      _paths.clear();
       _previewPoints = const [];
       _dragStartActorId = null;
     });
@@ -67,7 +90,41 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
 
   void _undoLastPath() {
     if (_paths.isEmpty) return;
-    setState(() => _paths.removeLast());
+    _updateCurrentFrame((frame) => frame.copyWith(paths: frame.paths.sublist(0, frame.paths.length - 1)));
+  }
+
+  void _addFrame() {
+    setState(() {
+      final duplicated = PlayFrameData(actors: _actors);
+      _frames = [
+        ..._frames.sublist(0, _currentFrameIndex + 1),
+        duplicated,
+        ..._frames.sublist(_currentFrameIndex + 1),
+      ];
+      _currentFrameIndex += 1;
+      _selectedActorId = null;
+    });
+  }
+
+  void _deleteCurrentFrame() {
+    if (_frames.length < 2) return;
+    setState(() {
+      _frames = [
+        for (var i = 0; i < _frames.length; i++)
+          if (i != _currentFrameIndex) _frames[i],
+      ];
+      _currentFrameIndex = _currentFrameIndex.clamp(0, _frames.length - 1);
+      _selectedActorId = null;
+    });
+  }
+
+  void _selectFrame(int index) {
+    setState(() {
+      _currentFrameIndex = index;
+      _selectedActorId = null;
+      _dragStartActorId = null;
+      _previewPoints = const [];
+    });
   }
 
   CourtActor? _nearestActor(Offset fractionalPoint, {double thresholdFraction = 0.08}) {
@@ -108,7 +165,8 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
   }
 
   void _onDrawPanEnd(DragEndDetails details) {
-    if (_dragStartActorId == null || _previewPoints.length < 2) {
+    final startActorId = _dragStartActorId;
+    if (startActorId == null || _previewPoints.length < 2) {
       setState(() {
         _dragStartActorId = null;
         _previewPoints = const [];
@@ -118,9 +176,8 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
     final start = _previewPoints.first;
     final end = _previewPoints.last;
     if ((end - start).distance > 0.02) {
-      setState(() {
-        _paths.add(ActorPath(actorId: _dragStartActorId!, type: _drawPathType, points: [start, end]));
-      });
+      final newPath = ActorPath(actorId: startActorId, type: _drawPathType, points: [start, end]);
+      _updateCurrentFrame((frame) => frame.copyWith(paths: [...frame.paths, newPath]));
     }
     setState(() {
       _dragStartActorId = null;
@@ -141,6 +198,15 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
             tooltip: 'Undo last path',
           ),
           IconButton(onPressed: _reset, icon: const Icon(Icons.restart_alt), tooltip: 'Reset'),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => FramePlaybackScreen(frames: [for (final f in _frames) f.actors]),
+              ),
+            ),
+            icon: const Icon(Icons.play_arrow),
+            tooltip: 'Play sequence (CXP.07)',
+          ),
           IconButton(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AnimationPerfSpikeScreen()),
@@ -178,6 +244,36 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
                       if (type != null) setState(() => _drawPathType = type);
                     },
                   ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _frames.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        return ChoiceChip(
+                          label: Text('Frame ${index + 1}'),
+                          selected: index == _currentFrameIndex,
+                          onSelected: (_) => _selectFrame(index),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                IconButton(onPressed: _addFrame, icon: const Icon(Icons.add_box), tooltip: 'Add frame'),
+                IconButton(
+                  onPressed: _frames.length < 2 ? null : _deleteCurrentFrame,
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Delete current frame',
+                ),
               ],
             ),
           ),

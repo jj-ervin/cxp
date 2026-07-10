@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cxp/main.dart';
 import 'package:cxp/features/court_editor/animation_perf_spike_screen.dart';
 import 'package:cxp/features/court_editor/court_editor_screen.dart';
+import 'package:cxp/features/court_editor/frame_playback_screen.dart';
 import 'package:cxp/models/play_frame.dart';
 
 void main() {
@@ -117,6 +118,130 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.widget<IconButton>(undoButtonFinder).onPressed, isNull);
+    });
+  });
+
+  group('CXP.07 multi-frame sequencing', () {
+    testWidgets('starts with exactly one frame chip and a disabled delete button', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      expect(find.text('Frame 1'), findsOneWidget);
+      expect(find.text('Frame 2'), findsNothing);
+
+      final deleteButtonFinder = find.widgetWithIcon(IconButton, Icons.delete_outline);
+      expect(tester.widget<IconButton>(deleteButtonFinder).onPressed, isNull);
+    });
+
+    testWidgets('Add frame appends and selects a new chip; delete becomes enabled', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Frame 1'), findsOneWidget);
+      expect(find.text('Frame 2'), findsOneWidget);
+
+      final deleteButtonFinder = find.widgetWithIcon(IconButton, Icons.delete_outline);
+      expect(tester.widget<IconButton>(deleteButtonFinder).onPressed, isNotNull);
+    });
+
+    testWidgets('Add frame duplicates actor positions but not drawn paths', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      // Draw a path on Frame 1.
+      await tester.tap(find.text('Draw Route'));
+      await tester.pumpAndSettle();
+      final startTokenCenter = tester.getCenter(find.text('1'));
+      final gesture = await tester.startGesture(startTokenCenter);
+      await gesture.moveBy(const Offset(80, 60));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final undoButtonFinder = find.widgetWithIcon(IconButton, Icons.undo);
+      expect(tester.widget<IconButton>(undoButtonFinder).onPressed, isNotNull);
+
+      // Adding a frame should land on a fresh frame with no paths yet,
+      // even though the path drawn on Frame 1 still exists there.
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<IconButton>(undoButtonFinder).onPressed, isNull);
+
+      // But actor "1" should still be rendered (duplicated position), not lost.
+      expect(find.text('1'), findsOneWidget);
+    });
+
+    testWidgets('Delete frame removes the current frame and clamps selection', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+      expect(find.text('Frame 2'), findsOneWidget);
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.delete_outline));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Frame 1'), findsOneWidget);
+      expect(find.text('Frame 2'), findsNothing);
+      expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.delete_outline)).onPressed, isNull);
+    });
+
+    testWidgets('Reset collapses back to a single frame', (WidgetTester tester) async {
+      await tester.pumpWidget(const CxpApp());
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+      expect(find.text('Frame 3'), findsOneWidget);
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.restart_alt));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Frame 1'), findsOneWidget);
+      expect(find.text('Frame 2'), findsNothing);
+    });
+
+    testWidgets('Play opens FramePlaybackScreen and it runs without error', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.play_arrow));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FramePlaybackScreen), findsOneWidget);
+
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(tester.takeException(), isNull);
+
+      // Pause/play toggle should be present and tappable.
+      final playPauseFinder = find.byWidgetPredicate(
+        (widget) => widget is IconButton && (widget.tooltip == 'Play' || widget.tooltip == 'Pause'),
+      );
+      expect(playPauseFinder, findsOneWidget);
+      await tester.tap(playPauseFinder);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+
+    test('actorsAtSequenceProgress returns the single frame unchanged when only one frame exists', () {
+      final only = defaultBasketballFrame();
+      final result = actorsAtSequenceProgress([only], 0.7);
+      expect(result, same(only));
     });
   });
 }

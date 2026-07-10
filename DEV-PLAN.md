@@ -43,7 +43,9 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | SKU model | pre-v0.1 | — | ✅ |
 | Animation perf spike (functional; real-device profiling outstanding) | pre-v0.1 | — | 🔄 |
 | Route/path drawing (straight lines, 6 types) | pre-v0.1 | — | ✅ |
-| Basketball MVP (frames, play DB, PDF export) | v0.1 | — | ⬜ |
+| Multi-frame sequencing + playback | pre-v0.1 | — | ✅ |
+| Local play persistence (play database) | v0.1 | — | ⬜ |
+| PDF/PNG/SVG playbook export | v0.1 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
@@ -53,7 +55,8 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| CXP.07 | Multi-frame sequencing (frame list + generated transitions) | — | P0 |
+| CXP.15 | Local play persistence (play database) | — | P0 |
+| CXP.16 | PDF/PNG/SVG playbook export | — | P0 |
 | CXP.12 | Real-device/release-mode profiling of animation perf spike | — | P1 (blocked on device/toolchain access) |
 | CXP.13 | Curved path rendering | — | P2 |
 | CXP.14 | Per-path delete/edit | — | P2 |
@@ -63,6 +66,10 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 ## RECENTLY COMPLETED
 
+- CXP.07 — Multi-frame sequencing: `PlayFrameData`, frame chip row
+  (add/delete/select), `FramePlaybackScreen` (play/pause/restart); paths
+  deliberately not carried forward when a frame is duplicated;
+  `flutter analyze` clean, 14/14 tests passing (2026-07-10)
 - CXP.06 — Route/path drawing: pass/dribble/cut/screen/shot/defense path
   types with distinct styling, mode-toggle interaction (Select/Move vs.
   Draw Route), undo-last-path; `flutter analyze` clean, 7/7 tests passing
