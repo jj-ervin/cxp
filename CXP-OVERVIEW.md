@@ -587,8 +587,21 @@ CXP integrates; it does not reinvent those industries.
 - Where the real Sport 2 (football vs. something else) lands in priority
   once basketball MVP ships.
 - Whether Flutter's `CustomPainter` performance holds up for animated
-  multi-frame plays with many simultaneous paths — unvalidated, needs a
-  spike.
+  multi-frame plays with many simultaneous paths — a debug-session
+  functional spike ran clean (CXP.03, 2026-07-10; see
+  `docs/architecture/perf-spike-cxp03.md`), but true release-mode,
+  real-device profiling has not happened yet and is still required before
+  v0.1 relies on this.
+- **CXP-edge (queued idea, not scoped):** a Raspberry Pi-class device as
+  a delivery target — candidates raised: (a) a local offline-sync hub for
+  gyms with unreliable wifi, extending the offline-first requirement in
+  `docs/architecture/ux-philosophy.md`; (b) a gym-mounted kiosk/scoreboard
+  display; (c) a video-capture appliance feeding Player Development's
+  video integration. Would follow the same HAL-adapter pattern `eco-edge`
+  already uses elsewhere in this portfolio. Explicitly not designed or
+  scheduled — CXP has no shipped MVP yet, and `module-boundaries.md`'s
+  "don't build ahead of the phase" rule applies here directly. Logged so
+  the idea isn't lost, not because it's next.
 - Marketplace legal/IP model (licensing terms, revenue share mechanics,
   dispute handling) is directional only — no terms drafted.
 - Whether Verified Organization status requires any real-world

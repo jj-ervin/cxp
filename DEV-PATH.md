@@ -226,6 +226,47 @@ client target. Both were decided by explicit user choice, not inferred.
 
 ---
 
+### Phase 3 — Animation perf spike (2026-07-10)
+
+**Goal:** Resolve the `CustomPainter` performance open question
+(`CXP-OVERVIEW.md`) before more editor features (routes, multi-frame
+sequencing) build on an unvalidated rendering approach.
+
+**Key decisions:**
+
+- Spike scope is **functional only** in this environment: no release-mode
+  build, no real device, no Windows-desktop run (Visual Studio's C++
+  workload isn't installed here) was profiled. This is stated explicitly
+  in `docs/architecture/perf-spike-cxp03.md` rather than implied as a
+  full performance validation — the spike passed for continuing
+  development, not for a release claim.
+- Animation model confirmed as frames + generated transitions
+  (`lerpFrame` between two frames), matching the choice already made in
+  `ux-philosophy.md` over full keyframe timelines.
+- `stressTestFrames()` deliberately generates a harder-than-realistic
+  scenario (all 10 actors reshuffling every frame) to get a useful lower
+  bound, with the explicit caveat that a typical real play likely costs
+  less.
+- Queued idea logged, not scoped: **CXP-edge** — a Raspberry Pi-class
+  delivery target (local offline-sync hub, gym kiosk/scoreboard display,
+  or video-capture appliance for Player Development), raised by the user
+  and appended to `CXP-OVERVIEW.md` Open Questions rather than designed
+  now, per `module-boundaries.md`'s "don't build ahead of the phase" rule.
+
+**Completed:**
+
+- CXP.03 — Animation perf spike (functional pass; real-device profiling
+  remains an open follow-up, tracked as CXP.12)
+
+**Carried forward:**
+
+- CXP.12 — Real-device/release-mode profiling of the animation approach
+  (blocked on having an actual device or a working Windows/Android/iOS
+  toolchain in this environment)
+- CXP.06, CXP.07 (unchanged)
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -233,7 +274,7 @@ client target. Both were decided by explicit user choice, not inferred.
 | CXP.00 | Capture scoping conversation | done | 0 | See `CXP-OVERVIEW.md` |
 | CXP.01 | Scaffold repo + GC bootstrap | done | 0 | AGENTS.md, DEV-PATH/PLAN/RELEASE, projects.yaml entry |
 | CXP.02 | Architecture week | done | 1 | `docs/architecture/*.md` — domain model, module boundaries, security, AI, plugin, UX |
-| CXP.03 | Flutter `CustomPainter` performance spike | planned | 1 | Multi-frame animated play rendering — unvalidated risk |
+| CXP.03 | Flutter `CustomPainter` performance spike | done (functional only) | 1 | `lib/features/court_editor/animation_perf_spike_screen.dart` — see `docs/architecture/perf-spike-cxp03.md`; real-device/release-mode profiling still outstanding |
 | CXP.04 | Basketball court editor prototype | done | 1 | `lib/features/court_editor/` — single frame, 5v5 drag-and-drop, tap-to-select; `flutter analyze`/`flutter test` clean |
 | CXP.05 | Flutter project skeleton | done | 1 | web+windows targets, org com.twentyamplabs, `flutter analyze` clean |
 | CXP.06 | Route/path drawing on court editor | planned | 1 | Pass/cut/screen/shot on top of existing drag-and-drop |
@@ -242,6 +283,7 @@ client target. Both were decided by explicit user choice, not inferred.
 | CXP.09 | Domain-agnostic Core / Vertical Pack split | done | 2 | `domain-model.md`, `module-boundaries.md` revised |
 | CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |
 | CXP.11 | Wire SKU enforcement into Core's authorization layer | planned | — | Blocked on Core module implementation existing at all |
+| CXP.12 | Real-device/release-mode profiling of animation perf spike | planned | 3 | Blocked on an actual device or working desktop toolchain |
 
 Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` · `unknown_needs_audit`
 

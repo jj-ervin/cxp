@@ -65,3 +65,39 @@ List<CourtActor> defaultBasketballFrame() {
   });
   return [...offense, ...defense];
 }
+
+/// Linear interpolation between two frames holding the same actor ids in
+/// the same order. This is the "frames + generated transitions" animation
+/// model chosen in `docs/architecture/ux-philosophy.md` over full
+/// timeline keyframing — the coach places frames, the engine generates
+/// the motion between them.
+List<CourtActor> lerpFrame(List<CourtActor> a, List<CourtActor> b, double t) {
+  assert(a.length == b.length, 'lerpFrame requires frames with matching actor lists');
+  return [
+    for (var i = 0; i < a.length; i++)
+      a[i].copyWith(
+        x: a[i].x + (b[i].x - a[i].x) * t,
+        y: a[i].y + (b[i].y - a[i].y) * t,
+      ),
+  ];
+}
+
+/// CXP.03 perf-spike input: generates [frameCount] frames of the default
+/// 5v5 basketball set, each frame reshuffling every actor's position, so
+/// the animation has to interpolate all 10 actors simultaneously on every
+/// tick — the worst case the spike is meant to probe (see
+/// `docs/architecture/perf-spike-cxp03.md` for findings and limitations).
+List<List<CourtActor>> stressTestFrames({int frameCount = 4}) {
+  final base = defaultBasketballFrame();
+  return List.generate(frameCount, (frameIndex) {
+    if (frameIndex == 0) return base;
+    final phase = frameIndex / frameCount;
+    return [
+      for (var i = 0; i < base.length; i++)
+        base[i].copyWith(
+          x: (0.15 + 0.7 * ((i + frameIndex) % base.length) / base.length).clamp(0.05, 0.95),
+          y: (0.15 + 0.75 * ((phase + i / base.length) % 1.0)).clamp(0.05, 0.95),
+        ),
+    ];
+  });
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/play_frame.dart';
+import 'animation_perf_spike_screen.dart';
 import 'basketball_court_painter.dart';
 
 /// CXP.04 — basketball court editor prototype.
@@ -57,6 +58,13 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
         title: const Text('Court Editor — prototype'),
         actions: [
           IconButton(onPressed: _reset, icon: const Icon(Icons.restart_alt), tooltip: 'Reset'),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AnimationPerfSpikeScreen()),
+            ),
+            icon: const Icon(Icons.speed),
+            tooltip: 'Animation perf spike (CXP.03)',
+          ),
         ],
       ),
       body: Center(
