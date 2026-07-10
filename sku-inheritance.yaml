@@ -48,6 +48,7 @@ inheritance_rules:
       - travel
       - organization_reporting
       - power_bi_bridge
+      - sso_integration
 
   cxp-enterprise:
     inherits_from:

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../data/play_repository.dart';
 import '../../models/play_frame.dart';
+import '../../models/saved_play.dart';
 import 'animation_perf_spike_screen.dart';
 import 'basketball_court_painter.dart';
 import 'frame_playback_screen.dart';
+import 'play_library_screen.dart';
 
 enum _EditorMode { select, draw }
 
-/// CXP.04/CXP.06/CXP.07 — basketball court editor prototype.
+/// CXP.04/CXP.06/CXP.07/CXP.15 — basketball court editor prototype.
 ///
 /// CXP.04: drag-and-drop players on a single frame (select/move).
 /// CXP.06: route drawing (pass/dribble/cut/screen/shot/defense) as a
@@ -23,13 +26,36 @@ enum _EditorMode { select, draw }
 /// "Play" pushes `FramePlaybackScreen`, which interpolates actor motion
 /// between frames using the same `actorsAtSequenceProgress` helper the
 /// CXP.03 perf spike uses.
-///
-/// Still no save/export/play-database persistence.
+/// CXP.15: local persistence via `PlayRepository` — Save writes the
+/// current frames under the play's id (new id if this is a fresh play);
+/// the library icon opens `PlayLibraryScreen` to load or delete a
+/// previously saved play. No export yet (CXP.16).
 class CourtEditorScreen extends StatefulWidget {
-  const CourtEditorScreen({super.key});
+  const CourtEditorScreen({super.key, PlayRepository? repository})
+    : repository = repository ?? const _DefaultRepository();
+
+  final PlayRepository repository;
 
   @override
   State<CourtEditorScreen> createState() => _CourtEditorScreenState();
+}
+
+/// Lazily constructs the real `SharedPreferencesPlayRepository` only when
+/// no repository is injected — keeps widget tests free to inject an
+/// in-memory fake without touching platform channels.
+class _DefaultRepository implements PlayRepository {
+  const _DefaultRepository();
+
+  static final _delegate = SharedPreferencesPlayRepository();
+
+  @override
+  Future<void> delete(String id) => _delegate.delete(id);
+
+  @override
+  Future<List<SavedPlay>> loadAll() => _delegate.loadAll();
+
+  @override
+  Future<void> save(SavedPlay play) => _delegate.save(play);
 }
 
 class _CourtEditorScreenState extends State<CourtEditorScreen> {
@@ -42,6 +68,9 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
 
   String? _dragStartActorId;
   List<Offset> _previewPoints = const [];
+
+  String? _currentPlayId;
+  String _currentPlayName = 'Untitled Play';
 
   List<CourtActor> get _actors => _frames[_currentFrameIndex].actors;
   List<ActorPath> get _paths => _frames[_currentFrameIndex].paths;
@@ -85,6 +114,60 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
       _selectedActorId = null;
       _previewPoints = const [];
       _dragStartActorId = null;
+      // A reset play is a fresh, unsaved play — not a return to whatever
+      // was last loaded/saved, so Save should create a new record rather
+      // than silently overwrite the play this session started from.
+      _currentPlayId = null;
+      _currentPlayName = 'Untitled Play';
+    });
+  }
+
+  Future<void> _saveCurrentPlay() async {
+    final nameController = TextEditingController(text: _currentPlayName);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save play'),
+        content: TextField(controller: nameController, autofocus: true, decoration: const InputDecoration(labelText: 'Play name')),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(nameController.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+
+    final play = SavedPlay(
+      id: _currentPlayId ?? generateLocalPlayId(),
+      name: name,
+      frames: _frames,
+      createdAt: DateTime.now(),
+    );
+    await widget.repository.save(play);
+    if (!mounted) return;
+    setState(() {
+      _currentPlayId = play.id;
+      _currentPlayName = play.name;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved "${play.name}"')));
+  }
+
+  Future<void> _openLibrary() async {
+    final selected = await Navigator.of(context).push<SavedPlay>(
+      MaterialPageRoute(builder: (_) => PlayLibraryScreen(repository: widget.repository)),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _frames = selected.frames;
+      _currentFrameIndex = 0;
+      _currentPlayId = selected.id;
+      _currentPlayName = selected.name;
+      _selectedActorId = null;
+      _dragStartActorId = null;
+      _previewPoints = const [];
     });
   }
 
@@ -190,8 +273,18 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
     final isDrawMode = _mode == _EditorMode.draw;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Court Editor — prototype'),
+        title: Text(_currentPlayName),
         actions: [
+          IconButton(
+            onPressed: _openLibrary,
+            icon: const Icon(Icons.folder_open),
+            tooltip: 'My Plays',
+          ),
+          IconButton(
+            onPressed: _saveCurrentPlay,
+            icon: const Icon(Icons.save_outlined),
+            tooltip: 'Save play',
+          ),
           IconButton(
             onPressed: _paths.isEmpty ? null : _undoLastPath,
             icon: const Icon(Icons.undo),

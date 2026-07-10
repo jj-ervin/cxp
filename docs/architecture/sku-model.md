@@ -61,6 +61,7 @@ cxp-club:
     - travel
     - organization_reporting
     - power_bi_bridge
+    - sso_integration              # Entra ID / Google Workspace / Okta — see security-model.md
 
 cxp-enterprise:
   inherits_from: [cxp-club]
@@ -115,7 +116,12 @@ per organization... toggle state lives on `Organization`"):
 | `finance` | Finance | cxp-club |
 | `travel` | Travel | cxp-club |
 | `organization_reporting`, `power_bi_bridge` | Analytics, Power BI bridge | cxp-club |
+| `sso_integration` | Federated login (Entra ID / Google Workspace / Okta) — see `security-model.md` | cxp-club |
 | `dedicated_tenant`, `custom_semantic_models`, `regional_reporting`, `advanced_integrations`, `custom_retention_and_governance` | Enterprise-only concerns | cxp-enterprise |
+
+MFA/TOTP (Google Authenticator, Microsoft Authenticator, Entra MFA) is
+**not** in this table — per `security-model.md`, it's a baseline
+requirement available at every SKU tier, not a gated capability.
 
 ## Relationship to Verticals
 

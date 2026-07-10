@@ -379,6 +379,73 @@ side.
 
 ---
 
+### Phase 6 — Local play persistence (2026-07-10)
+
+**Goal:** Close the "searchable play database" gap in `CXP-OVERVIEW.md`'s
+v0.1 MVP definition — nothing survived an app restart until this pass.
+
+**Key decisions:**
+
+- **`shared_preferences`, not `sqflite`/Drift, for the prototype.**
+  `shared_preferences` works identically across all six scaffolded
+  Flutter targets (including web) with zero per-platform setup; a real
+  SQLite-backed store would need different wiring per platform (and a
+  separate web story via `sqflite_common_ffi_web`). One JSON-encoded list
+  under a single key is enough to prove the save/load/delete flow; it is
+  explicitly not the domain model's versioned event layer for plays (see
+  `domain-model.md`'s "Versioned, not overwritten" discipline) — replacing
+  it with a real backend is exactly why `PlayRepository` is an interface
+  and not a concrete class UI code depends on directly.
+- **`SavedPlay` is a deliberately thin cut of `domain-model.md`'s `Play`.**
+  No `organization_id`, `group_id`, `sport`, `family`, `formation`,
+  `tags`, `version`, or `OwnershipRecord` — there is no
+  organization/team/auth layer in this prototype for those fields to mean
+  anything yet. Documented in the model file's doc comment so it isn't
+  mistaken for the real thing.
+- **Reset clears play identity, not just canvas state.** Before this
+  pass, "Reset" only wiped frames/paths; now it also clears
+  `_currentPlayId`/`_currentPlayName` back to "Untitled Play" so pressing
+  Save afterward creates a new record instead of silently overwriting
+  whatever play the session started from.
+- **Legacy `SharedPreferences.getInstance()` API, not the newer
+  `SharedPreferencesAsync`** — chosen specifically for well-documented
+  test-mocking support (`SharedPreferences.setMockInitialValues`), though
+  the final tests ended up using an in-memory `_FakePlayRepository`
+  instead and never needed the platform channel at all — documented here
+  as the reasoning in case a future pass reaches for the real store in
+  tests.
+- **Found and fixed a stale doc reference while in this area:**
+  `security-model.md` still said `PlayerSensitive` in several places from
+  before the Core/Vertical split (`domain-model.md` renamed it to
+  `MemberSensitive` in Phase 2) — corrected.
+- **Logged, not built:** identity-provider federation (Entra ID/Google
+  Workspace/Okta SSO, gated to `cxp-club`+; MFA/TOTP, ungated at every
+  tier) added to `security-model.md` and the SKU capability map
+  (`sso_integration`) per a direct user question — there is no auth
+  backend yet for either to attach to, so this is a decided boundary, not
+  an implementation.
+
+**Completed:**
+
+- CXP.15 — Local play persistence: `SavedPlay` model (JSON round-trip),
+  `PlayRepository` interface + `SharedPreferencesPlayRepository`,
+  `PlayLibraryScreen` (list/load/delete), Save dialog wired into the
+  court editor with new-vs-overwrite semantics tied to play identity.
+  `flutter analyze` clean; 20/20 tests passing (6 new: JSON round-trip,
+  repository contract, save flow, library load flow, library delete flow,
+  reset-then-save-creates-new-record).
+- Identity-provider federation SKU boundary decided and documented
+  (`security-model.md`, `sku-model.md`, `sku-inheritance.yaml`).
+
+**Carried forward:**
+
+- CXP.16 — PDF/PNG/SVG playbook export (last remaining v0.1 MVP piece)
+- CXP.13, CXP.14, CXP.12 (unchanged)
+- CXP.17 — Play search/tags/folders (library is a flat list today, fine
+  for a handful of plays, not for a season's worth)
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -394,8 +461,9 @@ side.
 | CXP.07 | Multi-frame sequencing | done | 5 | `PlayFrameData`, `FramePlaybackScreen`, frame chip row; `flutter analyze`/`flutter test` clean (14/14) |
 | CXP.13 | Curved path rendering | planned | 4 | Straight-line only today; `ActorPath.points` shape allows this later |
 | CXP.14 | Per-path delete/edit | planned | 4 | Only whole-list undo/clear exists today |
-| CXP.15 | Local play persistence (play database) | planned | 5 | Nothing survives an app restart yet |
-| CXP.16 | PDF/PNG/SVG playbook export | planned | 5 | Last v0.1 MVP piece per `CXP-OVERVIEW.md` |
+| CXP.15 | Local play persistence (play database) | done | 6 | `SavedPlay`, `PlayRepository`, `PlayLibraryScreen`, Save dialog; `flutter analyze`/`flutter test` clean (20/20) |
+| CXP.16 | PDF/PNG/SVG playbook export | planned | 6 | Last v0.1 MVP piece per `CXP-OVERVIEW.md` |
+| CXP.17 | Play search/tags/folders | planned | 6 | Library is a flat list today |
 | CXP.08 | Add macOS/Linux/Android/iOS platform targets | done | 2 | Folders scaffolded; only web currently buildable on this machine |
 | CXP.09 | Domain-agnostic Core / Vertical Pack split | done | 2 | `domain-model.md`, `module-boundaries.md` revised |
 | CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |

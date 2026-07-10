@@ -2,17 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cxp/main.dart';
+import 'package:cxp/data/play_repository.dart';
 import 'package:cxp/features/court_editor/animation_perf_spike_screen.dart';
 import 'package:cxp/features/court_editor/court_editor_screen.dart';
 import 'package:cxp/features/court_editor/frame_playback_screen.dart';
+import 'package:cxp/features/court_editor/play_library_screen.dart';
 import 'package:cxp/models/play_frame.dart';
+import 'package:cxp/models/saved_play.dart';
+
+/// In-memory `PlayRepository` for CXP.15 tests — avoids touching the real
+/// `shared_preferences` platform channel, matching the pattern used
+/// elsewhere in this file (`AnimationPerfSpikeScreen` tests wrap their own
+/// `MaterialApp` rather than depending on `CxpApp`'s wiring).
+class _FakePlayRepository implements PlayRepository {
+  final List<SavedPlay> _plays = [];
+
+  @override
+  Future<List<SavedPlay>> loadAll() async => List.unmodifiable(_plays);
+
+  @override
+  Future<void> save(SavedPlay play) async {
+    _plays.removeWhere((p) => p.id == play.id);
+    _plays.add(play);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _plays.removeWhere((p) => p.id == id);
+  }
+}
 
 void main() {
   testWidgets('App shell renders the court editor prototype', (WidgetTester tester) async {
     await tester.pumpWidget(const CxpApp());
 
     expect(find.byType(CourtEditorScreen), findsOneWidget);
-    expect(find.text('Court Editor — prototype'), findsOneWidget);
+    expect(find.text('Untitled Play'), findsOneWidget);
   });
 
   testWidgets('Default frame renders 5 offense + 5 defense actors', (WidgetTester tester) async {
@@ -242,6 +267,144 @@ void main() {
       final only = defaultBasketballFrame();
       final result = actorsAtSequenceProgress([only], 0.7);
       expect(result, same(only));
+    });
+  });
+
+  group('CXP.15 local persistence', () {
+    test('SavedPlay round-trips through JSON, including paths and multiple frames', () {
+      final original = SavedPlay(
+        id: 'play_1',
+        name: 'Horns Twist',
+        frames: [
+          PlayFrameData(
+            actors: defaultBasketballFrame(),
+            paths: const [
+              ActorPath(actorId: 'off_0', type: PathType.pass, points: [Offset(0.1, 0.2), Offset(0.3, 0.4)]),
+            ],
+          ),
+          PlayFrameData(actors: stressTestFrames(frameCount: 2)[1]),
+        ],
+        createdAt: DateTime.utc(2026, 7, 10, 12, 0),
+      );
+
+      final restored = SavedPlay.fromJson(original.toJson());
+
+      expect(restored.id, original.id);
+      expect(restored.name, original.name);
+      expect(restored.createdAt, original.createdAt);
+      expect(restored.frames.length, original.frames.length);
+      expect(restored.frames.first.paths.single.type, PathType.pass);
+      expect(restored.frames.first.paths.single.points.first.dx, closeTo(0.1, 1e-9));
+      expect(restored.frames.first.actors.length, original.frames.first.actors.length);
+    });
+
+    test('_FakePlayRepository save/loadAll/delete round-trip (validates the interface contract)', () async {
+      final repo = _FakePlayRepository();
+      final play = SavedPlay(id: 'p1', name: 'Test Play', frames: defaultPlayFrames(), createdAt: DateTime.now());
+
+      expect(await repo.loadAll(), isEmpty);
+
+      await repo.save(play);
+      expect((await repo.loadAll()).map((p) => p.id), [play.id]);
+
+      // Saving again with the same id overwrites rather than duplicates.
+      final renamed = play.copyWith(name: 'Renamed');
+      await repo.save(renamed);
+      final afterRename = await repo.loadAll();
+      expect(afterRename.length, 1);
+      expect(afterRename.single.name, 'Renamed');
+
+      await repo.delete(play.id);
+      expect(await repo.loadAll(), isEmpty);
+    });
+
+    testWidgets('Save prompts for a name, persists the play, and updates the app bar title', (
+      WidgetTester tester,
+    ) async {
+      final repo = _FakePlayRepository();
+      await tester.pumpWidget(MaterialApp(home: CourtEditorScreen(repository: repo)));
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.save_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save play'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'Horns Twist');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Horns Twist'), findsWidgets); // app bar title
+      final saved = await repo.loadAll();
+      expect(saved, hasLength(1));
+      expect(saved.single.name, 'Horns Twist');
+    });
+
+    testWidgets('My Plays lists a saved play; tapping it loads it back into the editor', (
+      WidgetTester tester,
+    ) async {
+      final repo = _FakePlayRepository();
+      await repo.save(
+        SavedPlay(id: 'preexisting', name: 'Preexisting Play', frames: defaultPlayFrames(), createdAt: DateTime.now()),
+      );
+      await tester.pumpWidget(MaterialApp(home: CourtEditorScreen(repository: repo)));
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.folder_open));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlayLibraryScreen), findsOneWidget);
+      expect(find.text('Preexisting Play'), findsOneWidget);
+
+      await tester.tap(find.text('Preexisting Play'));
+      await tester.pumpAndSettle();
+
+      // Back on the editor, the app bar title reflects the loaded play.
+      expect(find.text('Preexisting Play'), findsOneWidget);
+    });
+
+    testWidgets('My Plays delete button removes the play from the repository', (WidgetTester tester) async {
+      final repo = _FakePlayRepository();
+      await repo.save(
+        SavedPlay(id: 'to_delete', name: 'Delete Me', frames: defaultPlayFrames(), createdAt: DateTime.now()),
+      );
+      await tester.pumpWidget(MaterialApp(home: CourtEditorScreen(repository: repo)));
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.folder_open));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Me'), findsOneWidget);
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.delete_outline));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Me'), findsNothing);
+      expect(find.text('No saved plays yet.'), findsOneWidget);
+      expect(await repo.loadAll(), isEmpty);
+    });
+
+    testWidgets('Reset clears play identity so Save creates a new record instead of overwriting', (
+      WidgetTester tester,
+    ) async {
+      final repo = _FakePlayRepository();
+      await tester.pumpWidget(MaterialApp(home: CourtEditorScreen(repository: repo)));
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.save_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'First Play');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+      expect(await repo.loadAll(), hasLength(1));
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.restart_alt));
+      await tester.pumpAndSettle();
+      expect(find.text('Untitled Play'), findsOneWidget);
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.save_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Second Play');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      final all = await repo.loadAll();
+      expect(all.map((p) => p.name).toSet(), {'First Play', 'Second Play'});
     });
   });
 }

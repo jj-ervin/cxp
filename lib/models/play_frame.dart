@@ -41,6 +41,20 @@ class CourtActor {
       y: y ?? this.y,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'label': label, 'side': side.name, 'x': x, 'y': y};
+  }
+
+  factory CourtActor.fromJson(Map<String, dynamic> json) {
+    return CourtActor(
+      id: json['id'] as String,
+      label: json['label'] as String,
+      side: ActorSide.values.byName(json['side'] as String),
+      x: (json['x'] as num).toDouble(),
+      y: (json['y'] as num).toDouble(),
+    );
+  }
 }
 
 /// Basketball sport pack validation rule (see plugin-architecture.md):
@@ -107,6 +121,27 @@ class ActorPath {
   /// produces exactly 2 (a straight segment), but the shape allows more
   /// for a future curved-path upgrade without a schema change.
   final List<Offset> points;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'actorId': actorId,
+      'type': type.name,
+      'points': [
+        for (final point in points) {'dx': point.dx, 'dy': point.dy},
+      ],
+    };
+  }
+
+  factory ActorPath.fromJson(Map<String, dynamic> json) {
+    return ActorPath(
+      actorId: json['actorId'] as String,
+      type: PathType.values.byName(json['type'] as String),
+      points: [
+        for (final point in json['points'] as List<dynamic>)
+          Offset((point['dx'] as num).toDouble(), (point['dy'] as num).toDouble()),
+      ],
+    );
+  }
 }
 
 /// Given [frames] (>= 1 frame) and a global [progress] across the whole
@@ -137,6 +172,25 @@ class PlayFrameData {
 
   PlayFrameData copyWith({List<CourtActor>? actors, List<ActorPath>? paths}) {
     return PlayFrameData(actors: actors ?? this.actors, paths: paths ?? this.paths);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'actors': [for (final actor in actors) actor.toJson()],
+      'paths': [for (final path in paths) path.toJson()],
+    };
+  }
+
+  factory PlayFrameData.fromJson(Map<String, dynamic> json) {
+    return PlayFrameData(
+      actors: [
+        for (final actor in json['actors'] as List<dynamic>)
+          CourtActor.fromJson(actor as Map<String, dynamic>),
+      ],
+      paths: [
+        for (final path in json['paths'] as List<dynamic>) ActorPath.fromJson(path as Map<String, dynamic>),
+      ],
+    );
   }
 }
 

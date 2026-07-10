@@ -44,7 +44,7 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | Animation perf spike (functional; real-device profiling outstanding) | pre-v0.1 | — | 🔄 |
 | Route/path drawing (straight lines, 6 types) | pre-v0.1 | — | ✅ |
 | Multi-frame sequencing + playback | pre-v0.1 | — | ✅ |
-| Local play persistence (play database) | v0.1 | — | ⬜ |
+| Local play persistence (play database) | v0.1 | — | ✅ |
 | PDF/PNG/SVG playbook export | v0.1 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
@@ -55,9 +55,9 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| CXP.15 | Local play persistence (play database) | — | P0 |
 | CXP.16 | PDF/PNG/SVG playbook export | — | P0 |
 | CXP.12 | Real-device/release-mode profiling of animation perf spike | — | P1 (blocked on device/toolchain access) |
+| CXP.17 | Play search/tags/folders | — | P1 |
 | CXP.13 | Curved path rendering | — | P2 |
 | CXP.14 | Per-path delete/edit | — | P2 |
 | CXP.11 | Wire SKU enforcement into Core's authorization layer | — | P2 (blocked on Core existing) |
@@ -66,6 +66,10 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 ## RECENTLY COMPLETED
 
+- CXP.15 — Local play persistence: `SavedPlay`/`PlayRepository`/
+  `PlayLibraryScreen`, Save dialog with new-vs-overwrite semantics;
+  identity-provider federation (SSO/MFA) SKU boundary decided and
+  documented; `flutter analyze` clean, 20/20 tests passing (2026-07-10)
 - CXP.07 — Multi-frame sequencing: `PlayFrameData`, frame chip row
   (add/delete/select), `FramePlaybackScreen` (play/pause/restart); paths
   deliberately not carried forward when a frame is duplicated;

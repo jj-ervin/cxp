@@ -43,7 +43,7 @@ action)`. The authorization check is:
 1. Does `actor` have a `Membership` in `organization_id` (or `team_id`)?
 2. Does that `Membership.role` include `action` on `resource` per the
    central permission table?
-3. For `PlayerSensitive` reads specifically: is there an explicit
+3. For `MemberSensitive` reads specifically: is there an explicit
    additional grant (not just team membership)? Base team membership does
    not imply access to medical/academic/emergency-contact data.
 
@@ -56,7 +56,7 @@ transactions where `amount > organization.approval_threshold`.
 
 ## Privacy by design (minors)
 
-- `PlayerSensitive` is a separate table/permission boundary from `Player`
+- `MemberSensitive` is a separate table/permission boundary from `Player`
   (see domain model) — coach notes, ratings, and development observations
   do not automatically surface to parent or player views.
 - Parent consent and coach/organization verification are Core-level
@@ -65,6 +65,32 @@ transactions where `amount > organization.approval_threshold`.
   that doesn't touch medical data should never receive it in a payload.
 - Configurable retention per organization; download-your-data and
   delete-your-data are Core capabilities, not per-module reimplementations.
+
+## Identity provider federation
+
+`User.auth` already allows `passkey | password | oauth` (see
+`domain-model.md`). Splitting "oauth" out explicitly, since it covers two
+different things with different urgency:
+
+- **Federated SSO** (Microsoft Entra ID, Google Workspace, Okta) — "log
+  in with your school/club account." Schools and districts frequently
+  *require* this for procurement; a district IT department does not want
+  one more standalone password to manage. Treat this as a
+  `cxp-club`/`cxp-enterprise` SKU capability (see `sku-model.md`) — same
+  gating most SaaS products use for SSO — not something a volunteer coach
+  on `cxp-community` needs. `CXP-OVERVIEW.md`'s Technical Stack already
+  names Microsoft Entra External ID for the growth-stage backend; this is
+  the same integration, made explicit as a security requirement rather
+  than only a stack choice.
+- **MFA/TOTP** (Google Authenticator, Microsoft Authenticator, Entra
+  MFA) — already a baseline principle above ("Zero Trust," "MFA,
+  passkeys" in `CXP-OVERVIEW.md`'s Security section). This is **not**
+  tier-gated — available to every organization regardless of SKU, since
+  minors' data is in scope for every tier.
+
+Neither is implemented — there is no auth backend yet (see `What's
+deferred` below). This section exists so the SKU boundary is decided
+before Core's auth layer is built, not discovered mid-implementation.
 
 ## AI action boundary (cross-reference: `ai-model.md`)
 
@@ -77,9 +103,12 @@ approval from a human still requires it when AI-originated.
 ## What's deferred
 
 - Field-level (not table-level) permission granularity on
-  `PlayerSensitive` — open question, see `domain-model.md`.
+  `MemberSensitive` — open question, see `domain-model.md`.
 - Session/device management UI and account-recovery workflow — not
   designed yet, flagged for Phase 1 implementation planning, not this
   architecture pass.
 - Encryption-at-rest specifics depend on the eventual hosting choice
   (see `CXP-OVERVIEW.md` Azure Architecture) — not finalized here.
+- SSO/OIDC provider integration itself (Entra, Google Workspace, Okta) —
+  the SKU boundary is decided (see above), the actual connector is not
+  built; there is no Core auth implementation yet for it to attach to.
