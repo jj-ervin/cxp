@@ -144,12 +144,29 @@ implementation.
 - CXP.02 — Architecture week: `docs/architecture/domain-model.md`,
   `module-boundaries.md`, `security-model.md`, `ai-model.md`,
   `plugin-architecture.md`, `ux-philosophy.md`
+- CXP.05 — Flutter project skeleton (web + windows, org
+  com.twentyamplabs), `flutter analyze` clean
+- CXP.04 — Basketball court editor prototype: `lib/models/play_frame.dart`
+  (sport-neutral `CourtActor`/frame shape, prototype-scoped version of the
+  domain model's `PlayFrame`), `lib/features/court_editor/
+  basketball_court_painter.dart` (basketball sport pack playing surface —
+  key, free-throw circle, simplified three-point arc), `lib/features/
+  court_editor/court_editor_screen.dart` (5 offense + 5 defense tokens,
+  tap-to-select vs. pan-to-move disambiguation, reset action). No routes,
+  no multi-frame animation, no save/export — scope was deliberately kept
+  to the select-vs-move interaction discipline flagged as the hardest UX
+  problem in `ux-philosophy.md`. `flutter analyze` and `flutter test` both
+  clean.
 
 **Carried forward:**
 
-- CXP.03 — Flutter `CustomPainter` performance spike
-- CXP.04 — Basketball court editor prototype
-- CXP.05 — Flutter project skeleton (app shell, no features)
+- CXP.03 — Flutter `CustomPainter` performance spike for multi-frame
+  animated plays (still unvalidated — this prototype only exercises a
+  single static frame with ~10 tokens, not animation or many
+  simultaneous paths)
+- CXP.06 — Route/path drawing (pass, cut, screen, shot) on top of the
+  existing token drag-and-drop
+- CXP.07 — Multi-frame sequencing (frame list + generated transitions)
 
 ---
 
@@ -161,7 +178,7 @@ implementation.
 | CXP.01 | Scaffold repo + GC bootstrap | done | 0 | AGENTS.md, DEV-PATH/PLAN/RELEASE, projects.yaml entry |
 | CXP.02 | Architecture week | done | 1 | `docs/architecture/*.md` — domain model, module boundaries, security, AI, plugin, UX |
 | CXP.03 | Flutter `CustomPainter` performance spike | planned | 1 | Multi-frame animated play rendering — unvalidated risk |
-| CXP.04 | Basketball court editor prototype | planned | 1 | Single frame, drag-and-drop, depends on CXP.05 |
+| CXP.04 | Basketball court editor prototype | done | 1 | `lib/features/court_editor/` — single frame, 5v5 drag-and-drop, tap-to-select; `flutter analyze`/`flutter test` clean |
 | CXP.05 | Flutter project skeleton | done | 1 | web+windows targets, org com.twentyamplabs, `flutter analyze` clean |
 
 Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` · `unknown_needs_audit`

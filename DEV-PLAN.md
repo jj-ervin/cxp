@@ -37,7 +37,8 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | Repo scaffold + GC bootstrap | — | — | ✅ |
 | Architecture week (`docs/architecture/*.md`) | pre-v0.1 | — | ✅ |
 | Flutter project skeleton | pre-v0.1 | — | ✅ |
-| Basketball MVP (court editor, frames, play DB, PDF export) | v0.1 | — | ⬜ |
+| Court editor prototype (single frame, drag-and-drop) | pre-v0.1 | — | ✅ |
+| Basketball MVP (routes, frames, play DB, PDF export) | v0.1 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
@@ -47,13 +48,17 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| CXP.04 | Basketball court editor prototype (drag-and-drop players, single frame) | — | P0 |
+| CXP.06 | Route/path drawing (pass, cut, screen, shot) on the court editor | — | P0 |
 | CXP.03 | Flutter `CustomPainter` performance spike for multi-frame animated plays | — | P1 |
+| CXP.07 | Multi-frame sequencing (frame list + generated transitions) | — | P1 |
 
 ---
 
 ## RECENTLY COMPLETED
 
+- CXP.04 — Basketball court editor prototype: 5v5 drag-and-drop,
+  tap-to-select vs. pan-to-move, `flutter analyze`/`flutter test` clean
+  (2026-07-10)
 - CXP.05 — Flutter project skeleton: web+windows targets, org
   com.twentyamplabs, placeholder shell, `flutter analyze` clean (2026-07-10)
 - CXP.02 — Architecture week: domain model, module boundaries, security
