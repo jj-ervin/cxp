@@ -41,6 +41,7 @@ architecture decisions have been executed yet — this phase exists to
 preserve the reasoning, not to commit to it.
 
 **Key decisions:**
+
 - Product is scoped as **CXP — Coach Experience Platform**, following the
   DXP naming pattern (Developer Experience Platform → Coach Experience
   Platform), living under 20Amp Labs.
@@ -73,15 +74,82 @@ preserve the reasoning, not to commit to it.
   Vision, Open Questions).
 
 **Completed:**
+
 - CXP.00 — Scoping conversation captured to `CXP-OVERVIEW.md`
 - CXP.01 — Repo scaffolded (GC bootstrap, DEV-PATH/DEV-PLAN/DEV-RELEASE,
   registered in portfolio `projects.yaml`)
 
 **Carried forward:**
-- CXP.02 — Architecture week (domain model, module boundaries, UX
-  philosophy, design language, plugin architecture, security model, AI
-  model) — recommended before any implementation starts, per the same
-  discipline used for Governance Commons.
+
+- CXP.03 — Flutter `CustomPainter` performance spike for animated
+  multi-frame plays (unvalidated technical risk flagged in
+  `CXP-OVERVIEW.md` Open Questions)
+- CXP.04 — Basketball court editor prototype (single frame, drag-and-drop)
+
+---
+
+### Phase 1 — Architecture week (2026-07-10)
+
+**Goal:** Produce the domain model, module boundaries, security model, AI
+model, plugin architecture, and UX philosophy documents before any code is
+written — same discipline used for Governance Commons. Design-only; no
+implementation.
+
+**Key decisions:**
+
+- Domain model is multi-tenant from the first table (`organization_id` on
+  every non-global row), event-sourced for statistics, versioned (not
+  overwritten) for plays/practice/rosters, and carries an explicit
+  ownership/license record on every coaching asset from v1 — including an
+  `ai_use_permission` field, so the Marketplace's AI-retrieval permission
+  model doesn't require a painful migration later.
+- `PlayerSensitive` (medical/academic/emergency-contact data) is a
+  separate table and separate permission boundary from `Player`, not a
+  set of columns — hard requirement carried from the scoping
+  conversation.
+- Module contract: every module owns its own tables, declares its Core
+  dependencies explicitly, is independently toggleable per organization,
+  and emits audit records through Core rather than bespoke logging.
+- Dependency direction is fixed: CXP may depend on Cockpit/eco.ai
+  interfaces; neither may depend on CXP-specific types. CXP must still
+  run in a degraded standalone mode with neither dependency present.
+- Security model: Zero Trust permission evaluation on every call
+  `(actor, organization_id, team_id?, resource, action)`; `PlayerSensitive`
+  reads require an explicit additional grant beyond team membership;
+  Finance enforces segregation of duties (submitter ≠ approver above a
+  configured threshold).
+- AI model: eco.ai gets context through the same permission layer as a
+  human actor, never receives `PlayerSensitive` fields, and every
+  recommendation must expose `{ text, why, confidence, evidence,
+  approval_required, limitations }`. Guardrails (no injury diagnosis, no
+  autonomous financial actions, no unsupervised minor messaging, etc.)
+  are enforced at the tool/action layer CXP exposes, not left to prompt
+  wording alone.
+- Plugin architecture: sport packs (Basketball v1, Football later) supply
+  playing surface, actor counts, symbols, path types, formation
+  templates, validation rules, terminology, and export layout; the core
+  engine (canvas, selection, frame/timeline, database, export) never
+  branches on sport. `PlayFrame` needs an explicit decision on an optional
+  `phase` field before football is built, to avoid reshaping the core
+  frame schema later.
+- UX philosophy: the Five-Minute Rule (org → team → players → tomorrow's
+  practice, under 5 minutes) is the acceptance bar for every design
+  decision. Click/prompt/hybrid modes are all first-class; no essential
+  coaching task may require the prompt-driven mode. Accessibility
+  (contrast, screen reader, keyboard nav, color-blind-safe diagrams) is
+  treated as a v1-adjacent differentiator, not a Phase 4 afterthought.
+
+**Completed:**
+
+- CXP.02 — Architecture week: `docs/architecture/domain-model.md`,
+  `module-boundaries.md`, `security-model.md`, `ai-model.md`,
+  `plugin-architecture.md`, `ux-philosophy.md`
+
+**Carried forward:**
+
+- CXP.03 — Flutter `CustomPainter` performance spike
+- CXP.04 — Basketball court editor prototype
+- CXP.05 — Flutter project skeleton (app shell, no features)
 
 ---
 
@@ -91,7 +159,10 @@ preserve the reasoning, not to commit to it.
 | --- | --- | --- | --- | --- |
 | CXP.00 | Capture scoping conversation | done | 0 | See `CXP-OVERVIEW.md` |
 | CXP.01 | Scaffold repo + GC bootstrap | done | 0 | AGENTS.md, DEV-PATH/PLAN/RELEASE, projects.yaml entry |
-| CXP.02 | Architecture week | planned | 0 | Domain model, module boundaries, security model, AI model — not started |
+| CXP.02 | Architecture week | done | 1 | `docs/architecture/*.md` — domain model, module boundaries, security, AI, plugin, UX |
+| CXP.03 | Flutter `CustomPainter` performance spike | planned | 1 | Multi-frame animated play rendering — unvalidated risk |
+| CXP.04 | Basketball court editor prototype | planned | 1 | Single frame, drag-and-drop, depends on CXP.05 |
+| CXP.05 | Flutter project skeleton | done | 1 | web+windows targets, org com.twentyamplabs, `flutter analyze` clean |
 
 Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` · `unknown_needs_audit`
 

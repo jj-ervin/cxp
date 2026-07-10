@@ -17,15 +17,15 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 
 ## CURRENT POSITION
 
-**Active phase:** Phase 0 — Scoping
+**Active phase:** Phase 1 — Flutter skeleton + editor prototype
 **Active tracks:** none yet (single-track)
-**Current version:** pre-v0.1 (no code)
+**Current version:** pre-v0.1 (architecture documented, no app code yet)
 **Next release target:** none committed — see Open Questions in `CXP-OVERVIEW.md`
 
 **P0 blockers — must resolve before any new feature work:**
 
-- *(none)* — nothing has started yet; the blocker is deciding whether to
-  run the architecture week (CXP.02) before writing any code.
+- *(none)* — architecture week (CXP.02) is done; proceeding to CXP.05
+  (Flutter skeleton) and CXP.04 (court editor prototype).
 
 ---
 
@@ -35,7 +35,8 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | --- | --- | --- | --- |
 | Scoping capture (`CXP-OVERVIEW.md`) | — | — | ✅ |
 | Repo scaffold + GC bootstrap | — | — | ✅ |
-| Architecture week | pre-v0.1 | — | ⬜ |
+| Architecture week (`docs/architecture/*.md`) | pre-v0.1 | — | ✅ |
+| Flutter project skeleton | pre-v0.1 | — | ✅ |
 | Basketball MVP (court editor, frames, play DB, PDF export) | v0.1 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
@@ -46,14 +47,17 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| CXP.02 | Architecture week: domain model, module boundaries, UX philosophy, design language, plugin architecture, security model, AI model | — | P0 |
+| CXP.04 | Basketball court editor prototype (drag-and-drop players, single frame) | — | P0 |
 | CXP.03 | Flutter `CustomPainter` performance spike for multi-frame animated plays | — | P1 |
-| CXP.04 | Basketball court editor prototype (drag-and-drop players, single frame) | — | P1 |
 
 ---
 
 ## RECENTLY COMPLETED
 
+- CXP.05 — Flutter project skeleton: web+windows targets, org
+  com.twentyamplabs, placeholder shell, `flutter analyze` clean (2026-07-10)
+- CXP.02 — Architecture week: domain model, module boundaries, security
+  model, AI model, plugin architecture, UX philosophy (2026-07-10)
 - CXP.00 — Scoping conversation captured to `CXP-OVERVIEW.md` (2026-07-10)
 - CXP.01 — Repo scaffolded, registered in portfolio `projects.yaml` (2026-07-10)
 
