@@ -360,31 +360,42 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
     return bestDistance <= thresholdFraction ? nearest : null;
   }
 
-  /// If the current ball holder threw a `pass` in this frame and it lands
-  /// near another player, the ball follows the pass into the next frame.
-  /// Any other path type (dribble, cut, ...) or no path at all means the
-  /// same player carries the ball forward.
+  /// If the current ball holder has a `pass` among their drawn paths in
+  /// this frame, the ball follows that pass into the next frame — a coach
+  /// can draw both a pass *and* a cut for the same player in one frame
+  /// (pass the ball, then relocate), and the ball must still transfer
+  /// even though the cut, not the pass, determines where that player
+  /// physically ends up (see `_advanceToPathEnd`).
+  ///
+  /// A real bug this fixes: the first version only looked at whichever
+  /// path was *drawn last* for that player, so "pass then cut" silently
+  /// lost the pass — the cut overwrote it and the ball behaved as if the
+  /// player had dribbled, not passed. This searches **all** of the
+  /// holder's paths for a pass, independent of which one determines
+  /// position. If none of their paths is a pass, the same player carries
+  /// the ball forward (dribble/cut/screen/shot/defense, or no path at
+  /// all).
   ///
   /// Deliberately searches `originalActors` (pre-`_advanceToPathEnd`
   /// positions), not the advanced ones, and excludes the passer: a passer
-  /// who cuts to a new spot gets advanced to their own path's endpoint by
-  /// `_advanceToPathEnd`, which can land them almost exactly on top of
-  /// the actual receiver — searching the advanced list let the passer
-  /// match themself as "nearest" and the ball never transferred. The
-  /// receiver is whoever was standing near the pass's landing spot *at
-  /// the time of the pass*, not wherever players end up after everyone's
-  /// own paths are applied.
+  /// who also cuts to a new spot gets advanced to their own path's
+  /// endpoint by `_advanceToPathEnd`, which can land them almost exactly
+  /// on top of the actual receiver — searching the advanced list let the
+  /// passer match themself as "nearest" and the ball never transferred.
+  /// The receiver is whoever was standing near the pass's landing spot
+  /// *at the time of the pass*, not wherever players end up after
+  /// everyone's own paths are applied.
   String? _advanceBallHolder(String? currentHolderId, List<ActorPath> paths, List<CourtActor> originalActors) {
     if (currentHolderId == null) return null;
-    ActorPath? holderPath;
+    ActorPath? passPath;
     for (final path in paths) {
-      if (path.actorId == currentHolderId) holderPath = path;
+      if (path.actorId == currentHolderId && path.type == PathType.pass) passPath = path;
     }
-    if (holderPath == null || holderPath.type != PathType.pass || holderPath.points.isEmpty) {
+    if (passPath == null || passPath.points.isEmpty) {
       return currentHolderId;
     }
     final candidates = originalActors.where((a) => a.id != currentHolderId).toList();
-    final receiver = _nearestActor(holderPath.points.last, thresholdFraction: 0.1, among: candidates);
+    final receiver = _nearestActor(passPath.points.last, thresholdFraction: 0.1, among: candidates);
     return receiver?.id ?? currentHolderId;
   }
 

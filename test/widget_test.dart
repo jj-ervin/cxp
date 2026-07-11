@@ -573,5 +573,46 @@ void main() {
       expect(find.byKey(const ValueKey('ball-badge-off_0')), findsNothing);
       expect(find.byKey(const ValueKey('ball-badge-off_1')), findsOneWidget);
     });
+
+    testWidgets('a pass followed by a cut still transfers the ball to the receiver on the next frame', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      await tester.tap(find.byTooltip('Ball'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1'));
+      await tester.pumpAndSettle();
+
+      final passerCenter = tester.getCenter(find.text('1'));
+      final receiverCenter = tester.getCenter(find.text('2'));
+
+      await tester.tap(find.byTooltip('Pass'));
+      await tester.pumpAndSettle();
+      final passGesture = await tester.startGesture(passerCenter);
+      await passGesture.moveTo(receiverCenter);
+      await tester.pump();
+      await passGesture.up();
+      await tester.pumpAndSettle();
+
+      // Draw the passer's relocation second. This used to overwrite the
+      // pass for ball-transfer purposes because only the last path was
+      // inspected when the next frame was created.
+      await tester.tap(find.byTooltip('Cut'));
+      await tester.pumpAndSettle();
+      final cutGesture = await tester.startGesture(passerCenter);
+      await cutGesture.moveBy(const Offset(-80, 100));
+      await tester.pump();
+      await cutGesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Select / Move'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('ball-badge-off_0')), findsNothing);
+      expect(find.byKey(const ValueKey('ball-badge-off_1')), findsOneWidget);
+    });
   });
 }
