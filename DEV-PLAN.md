@@ -138,9 +138,18 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 ## QUEUED IDEAS
 
-- (Nothing queued yet beyond what's captured in `CXP-OVERVIEW.md` — that
-  document is the holding area for all brainstormed scope until the
-  architecture week promotes items into this file's priority queue.)
+- **Game Operations / Stat Keeper extension** — one live, auditable game
+  state with role-specific workspaces for scorekeeper/stat crew, coaching
+  staff, clock operator, PR staff, announcers, press, and parents/fans.
+  Candidate capabilities: score/period/possession/team-foul state; player
+  events and box score; lineup and substitution tracking; timeout and clock
+  coordination; coach-only notes; announcer/PR fact cards and milestones;
+  press-safe live feed; and a simplified parent-facing game view. Authority
+  must be explicit: official table roles write canonical game events,
+  coaching staff annotate without rewriting official statistics, and
+  press/parents receive read-only delayed or approved projections. Queue for
+  architecture and workflow validation before implementation; do not fold
+  it into the current court-editor prototype ad hoc.
 
 ---
 
