@@ -164,20 +164,38 @@ List<CourtActor> actorsAtSequenceProgress(List<List<CourtActor>> frames, double 
 /// `docs/architecture/ux-philosophy.md`'s frames-plus-generated-
 /// transitions model: the engine interpolates `actors` between frames
 /// for playback, but does not attempt to animate a drawn path.
+/// Sentinel so `PlayFrameData.copyWith` can distinguish "leave
+/// `ballHolderId` unchanged" from "explicitly clear it to null" — a plain
+/// `String? ballHolderId` parameter can't tell those apart.
+const _unsetBallHolder = Object();
+
 class PlayFrameData {
-  const PlayFrameData({required this.actors, this.paths = const []});
+  const PlayFrameData({required this.actors, this.paths = const [], this.ballHolderId});
 
   final List<CourtActor> actors;
   final List<ActorPath> paths;
 
-  PlayFrameData copyWith({List<CourtActor>? actors, List<ActorPath>? paths}) {
-    return PlayFrameData(actors: actors ?? this.actors, paths: paths ?? this.paths);
+  /// Which actor currently has the ball, if a coach has designated one —
+  /// added after direct coach feedback that there was "no way to
+  /// designate the basketball." The ball is always attached to an actor
+  /// (no independent free-floating ball position); this matches how
+  /// coaches actually diagram it and is simpler than tracking separate
+  /// ball coordinates. Null means unassigned/not shown.
+  final String? ballHolderId;
+
+  PlayFrameData copyWith({List<CourtActor>? actors, List<ActorPath>? paths, Object? ballHolderId = _unsetBallHolder}) {
+    return PlayFrameData(
+      actors: actors ?? this.actors,
+      paths: paths ?? this.paths,
+      ballHolderId: identical(ballHolderId, _unsetBallHolder) ? this.ballHolderId : ballHolderId as String?,
+    );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'actors': [for (final actor in actors) actor.toJson()],
       'paths': [for (final path in paths) path.toJson()],
+      'ballHolderId': ballHolderId,
     };
   }
 
@@ -190,6 +208,7 @@ class PlayFrameData {
       paths: [
         for (final path in json['paths'] as List<dynamic>) ActorPath.fromJson(path as Map<String, dynamic>),
       ],
+      ballHolderId: json['ballHolderId'] as String?,
     );
   }
 }

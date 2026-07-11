@@ -574,6 +574,30 @@ CXP integrates; it does not reinvent those industries.
   host. CXP's equivalent bet is becoming where a season lives, where
   player development lives, where club knowledge and coaching philosophy
   persist across coach turnover instead of leaving with the coach.
+- **Instruction Engine ("Teach Play")**: eco.ai generates a full teaching
+  plan from a drawn play — coach briefing, player-by-player responsibility
+  sheet, multi-day installation progression, drills, common mistakes,
+  coaching cues, a printable handout, age-appropriate variants. Needs no
+  new technical capability beyond what's already scoped in `ai-model.md`
+  — it's structured generation over the existing Play/Practice/Drill/
+  DevelopmentGoal data. The stronger near-term differentiator of the two
+  ideas below: most competitors help coaches store or communicate
+  information; almost none help them *teach* it. A real `cxp-coach-pro`
+  candidate once the editor MVP settles, not research.
+- **Game Intelligence / video-to-play (vision AI)**: computer vision
+  pipeline (player/ball tracking → possession detection → movement graph
+  → play recognition → editable diagram) that could turn uploaded practice
+  or game video into an editable play, plus the reverse (overlay an
+  animated diagram on video for teaching) and automated practice analysis
+  (closeout speed, pass counts, drill duration). Explicitly a later-stage
+  capability, not a v1 dependency — reliable tracking across youth gyms,
+  bad camera angles, and crowded sidelines is a hard, separate engineering
+  problem. Framed as a fourth AI engine alongside Language (eco.ai),
+  Analytics, and Knowledge, each pluggable (Azure AI Vision, OpenCV, YOLO,
+  Roboflow, etc.) rather than a custom-trained model CXP owns. Get the
+  play editor, practice planner, and data model right first — that's the
+  infrastructure that makes plugging in vision easier later, not a
+  prerequisite for it.
 
 ---
 

@@ -521,6 +521,131 @@ with a real coach before adding more scope.
 
 ---
 
+### Phase 8 — First real coach validation (2026-07-10)
+
+**Goal:** Get the v0.1 prototype in front of an actual coach (15 years
+AAU boys basketball + community ed) and act on real feedback instead of
+continuing to build blind. This is the first genuine external validation
+this project has had.
+
+**How it was done:** `flutter run -d web-server --web-port=8765`, the
+coach opened `http://localhost:8765` in their own browser directly — no
+`chromium-cli` available in this environment (checked; not installed,
+not discoverable as a public package here, likely bundled only in
+certain cloud/sandboxed Claude Code container images). Attempted headless
+Edge screenshots for my own verification; `--screenshot` mode fires
+before Flutter's debug web bootstrap actually paints, so this didn't
+produce a usable image on repeated attempts — real proportions debugging
+had to go back to code review plus the coach's own screenshots, not a
+self-service screenshot loop. Logged so a future pass doesn't re-attempt
+the same broken approach; Playwright (a real, installable, well-
+documented tool) was identified as the correct fix if reliable automated
+verification is needed again, but not installed without confirming first.
+
+**Feedback received (verbatim substance) and what was done about each:**
+
+1. *"Court is disproportionate and lines are misplaced, but the export
+   is sized good and lines and key are right."* — Real bug, root-caused
+   via code review: the free-throw circle radius was tied to
+   `laneWidth / 2` (16% of court width) instead of a real court's ~12%
+   (6ft circle / 50ft-wide half-court) — a third too large. The
+   three-point arc used two hand-guessed radian constants (`3.4`, `2.6`)
+   with no actual geometric derivation behind them. Fixed: free-throw
+   circle now uses an explicit `0.12 * width` constant; the arc's start/
+   sweep angles are now derived from where the arc should meet the
+   baseline (`math.asin`), correct regardless of aspect ratio, replacing
+   the magic numbers. **The PDF export's free-throw circle was
+   deliberately left unchanged** — the coach confirmed it already looks
+   right; "more mathematically consistent" is not a reason to touch code
+   a real user already validated.
+2. *"A lite or web version with limited tools could use the mode
+   feature maybe."* — Acknowledged as a legitimate simpler variant for a
+   future lighter-weight SKU tier, not acted on now; the full tool rail
+   (see CXP.20 below) is the primary experience going forward.
+3. *"When building frames, players who had been drawn to cut or screen
+   are in the same position, making it hard to build the next step."* —
+   Real, high-value workflow gap. Fixed as CXP.21: adding a frame now
+   advances any actor with a drawn path to that path's endpoint, not
+   their pre-move position — a coach draws a cut, adds a frame, and the
+   player is already where the arrow pointed. An actor with no drawn
+   path is unaffected (same as before).
+4. *"No way to designate the basketball or its movement from dribbling
+   or passing directions."* — Real, high-value gap. Added as CXP.21:
+   `PlayFrameData.ballHolderId` (one designated holder per frame, not a
+   free-floating ball position — matches how coaches actually diagram
+   it), a `Ball` tool in the rail (tap a player to give/clear the ball),
+   a small orange badge rendered on the holder's token in both the live
+   editor and the PDF export. When a frame is added, if the current
+   holder's last path was a `pass`, the ball automatically follows the
+   pass to whichever player is nearest the pass's landing point — dribble/
+   cut/screen/shot/defense paths leave the ball with the same player.
+   Playback (`FramePlaybackScreen`) does not yet render the ball marker —
+   deferred as CXP.23, not silently dropped.
+
+**Also fixed during implementation, not part of the coach's report:** a
+real bug the test suite itself caught — the ball-transfer logic initially
+searched for the nearest receiver among *already-advanced* actor
+positions, but a passer who also has a cut/path of their own gets
+advanced to their path's endpoint, which can land almost exactly on top
+of the actual receiver, causing the passer to match themself as
+"nearest" and the ball to never transfer. Fixed by searching the
+*original* (pre-advance) positions and excluding the passer from
+candidates — receiver identification is about who was standing at the
+landing spot *at the time of the pass*, not where everyone ends up after
+their own paths are applied.
+
+**Interaction model change (CXP.20):** replaced the Select/Move-vs-
+Draw-Route segmented toggle + separate path-type dropdown (CXP.06) with
+a persistent side tool rail — Select/Move, Ball, then one icon per
+`PathType` (Pass/Dribble/Cut/Screen/Shot/Defense) — after the coach's
+direct comparison to Photoshop/Illustrator/LibreCAD: "a sidebar of tools
+that knows what you're doing." One click both switches the active tool
+and (for draw tools) picks what it draws, instead of two separate
+actions. Stated as the current answer, not necessarily final — still the
+same select-vs-move-vs-draw interaction problem `ux-philosophy.md`
+already flagged as the hardest one in this editor.
+
+**Also logged, not built:** two Future Vision ideas from a second,
+separate strategic-direction pasted conversation — an "Instruction
+Engine" (`Teach Play`: eco.ai-generated multi-day installation plans,
+player-specific responsibility sheets, age-appropriate variants — needs
+no new technical capability beyond what's already in `ai-model.md`,
+flagged as the stronger near-term differentiator) and "Game Intelligence"
+(computer-vision video-to-play conversion — explicitly deferred as a
+later-stage capability per the source material's own reality check, not
+a v1 dependency). Both appended to `CXP-OVERVIEW.md`'s Future Vision
+section.
+
+**Completed:**
+
+- CXP.20 — Tool rail replaces mode toggle + dropdown
+  (`_Tool` enum, `_ToolRail`, `_ToolButton` in `court_editor_screen.dart`)
+- CXP.21 — Frame-add advances actors to drawn path endpoints; ball
+  marker (`PlayFrameData.ballHolderId`, Ball tool, badge rendering in
+  editor + PDF, pass-triggered ball transfer with the original-positions
+  bug fix above)
+- CXP.22 — Court geometry fix: free-throw circle radius corrected to a
+  real proportion; three-point arc angles now geometrically derived
+  instead of hand-guessed constants
+- Future Vision additions: Instruction Engine, Game Intelligence
+
+**Test coverage:** `flutter analyze` clean; 29/29 tests passing (4 new:
+frame-add advances an actor with a path to its endpoint, frame-add
+leaves an actor with no path unchanged, Ball tool assigns/clears the
+badge on tap, a pass transfers the ball to the receiver on the next
+frame — this last test is what caught the original-vs-advanced-positions
+bug above).
+
+**Carried forward:**
+
+- CXP.23 — Ball marker in `FramePlaybackScreen` (not rendered during
+  animated playback yet)
+- CXP.24 — "Lite" tool-mode variant for a future lighter-weight SKU tier
+  (coach's suggestion #2 above, not acted on now)
+- CXP.13, CXP.14, CXP.17, CXP.18, CXP.19, CXP.12, CXP.11 (unchanged)
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -546,6 +671,11 @@ with a real coach before adding more scope.
 | CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |
 | CXP.11 | Wire SKU enforcement into Core's authorization layer | planned | — | Blocked on Core module implementation existing at all |
 | CXP.12 | Real-device/release-mode profiling of animation perf spike | planned | 3 | Blocked on an actual device or working desktop toolchain |
+| CXP.20 | Tool rail (replaces mode toggle + dropdown) | done | 8 | Real coach feedback; `_Tool`/`_ToolRail` in `court_editor_screen.dart` |
+| CXP.21 | Frame-add path-endpoint advance + ball marker | done | 8 | Real coach feedback; `flutter analyze`/`flutter test` clean (29/29) |
+| CXP.22 | Court geometry fix (free-throw circle, 3PT arc) | done | 8 | Real coach feedback; PDF export intentionally left unchanged (already confirmed correct) |
+| CXP.23 | Ball marker in `FramePlaybackScreen` | planned | 8 | Not rendered during animated playback yet |
+| CXP.24 | "Lite" tool-mode variant for a future SKU tier | planned | 8 | Coach's suggestion, not acted on now |
 
 Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` · `unknown_needs_audit`
 

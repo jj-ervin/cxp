@@ -47,7 +47,8 @@ Future<Uint8List> buildPlaybookPdf({required String playName, required List<Play
                         painter: (canvas, size) => _paintCourtAndPaths(canvas, size, frame),
                       ),
                     ),
-                    for (final actor in frame.actors) _actorToken(actor, diagramSize),
+                    for (final actor in frame.actors)
+                      _actorToken(actor, diagramSize, hasBall: actor.id == frame.ballHolderId),
                   ],
                 ),
               ),
@@ -61,21 +62,38 @@ Future<Uint8List> buildPlaybookPdf({required String playName, required List<Play
   return doc.save();
 }
 
-pw.Widget _actorToken(CourtActor actor, PdfPoint size) {
+pw.Widget _actorToken(CourtActor actor, PdfPoint size, {bool hasBall = false}) {
   const tokenSize = 22.0;
   final isOffense = actor.side == ActorSide.offense;
   return pw.Positioned(
     left: actor.x * size.x - tokenSize / 2,
     top: actor.y * size.y - tokenSize / 2,
-    child: pw.Container(
-      width: tokenSize,
-      height: tokenSize,
-      decoration: pw.BoxDecoration(
-        color: isOffense ? PdfColors.blue700 : PdfColors.red700,
-        shape: isOffense ? pw.BoxShape.circle : pw.BoxShape.rectangle,
-      ),
-      alignment: pw.Alignment.center,
-      child: pw.Text(actor.label, style: const pw.TextStyle(color: PdfColors.white, fontSize: 8)),
+    child: pw.Stack(
+      children: [
+        pw.Container(
+          width: tokenSize,
+          height: tokenSize,
+          decoration: pw.BoxDecoration(
+            color: isOffense ? PdfColors.blue700 : PdfColors.red700,
+            shape: isOffense ? pw.BoxShape.circle : pw.BoxShape.rectangle,
+          ),
+          alignment: pw.Alignment.center,
+          child: pw.Text(actor.label, style: const pw.TextStyle(color: PdfColors.white, fontSize: 8)),
+        ),
+        if (hasBall)
+          pw.Positioned(
+            right: -3,
+            top: -3,
+            child: pw.Container(
+              width: 9,
+              height: 9,
+              decoration: const pw.BoxDecoration(
+                color: PdfColors.orange800,
+                shape: pw.BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
     ),
   );
 }

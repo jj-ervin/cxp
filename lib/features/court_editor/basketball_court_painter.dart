@@ -24,9 +24,11 @@ class BasketballCourtPainter extends CustomPainter {
     canvas.drawRect(rect, court);
     canvas.drawRect(rect.deflate(1), line);
 
-    // Key / paint (free-throw lane), centered on the baseline.
-    final laneWidth = size.width * 0.32;
-    final laneHeight = size.height * 0.42;
+    // Key / paint (free-throw lane), centered on the baseline. Real
+    // proportions (half-court ~50ft wide x 47ft long): 16ft lane width,
+    // ~19ft lane length.
+    final laneWidth = size.width * 0.32; // 16/50
+    final laneHeight = size.height * 0.40; // 19/47
     final lane = Rect.fromLTWH(
       (size.width - laneWidth) / 2,
       size.height - laneHeight,
@@ -35,23 +37,37 @@ class BasketballCourtPainter extends CustomPainter {
     );
     canvas.drawRect(lane, line);
 
-    // Free-throw circle.
+    // Free-throw circle. Real radius ~6ft on a ~50ft-wide court = 12% of
+    // width — deliberately NOT `laneWidth / 2` (that ties the circle to
+    // the lane's 16ft width, producing a circle a third too large; a
+    // real coach caught this — see DEV-PATH.md CXP.22).
     final ftCenter = Offset(size.width / 2, lane.top);
-    canvas.drawCircle(ftCenter, laneWidth / 2, line);
+    final freeThrowRadius = size.width * 0.12;
+    canvas.drawCircle(ftCenter, freeThrowRadius, line);
 
-    // Three-point arc (simplified, single radius).
-    final basketCenter = Offset(size.width / 2, size.height - size.height * 0.06);
-    final arcRadius = size.width * 0.44;
+    // Rim, ~5.25ft from the baseline on a 47ft-long half-court.
+    final basketCenter = Offset(size.width / 2, size.height - size.height * 0.11);
+    canvas.drawCircle(basketCenter, size.width * 0.02, line);
+
+    // Three-point arc. Real radius ~23.75ft on a 50ft-wide court = 47.5%
+    // of width. Rather than hand-guessed start/sweep radians (the
+    // previous version's actual bug — those two magic numbers didn't
+    // correspond to any real geometry), derive the start/sweep angles
+    // from where the arc should meet the baseline, so the arc is always
+    // geometrically consistent regardless of court aspect ratio.
+    final arcRadius = size.width * 0.475;
+    final baselineY = size.height * 0.99;
+    final verticalReach = (baselineY - basketCenter.dy).clamp(-arcRadius, arcRadius);
+    final halfAngleFromBottom = math.asin(verticalReach / arcRadius);
+    final startAngle = math.pi / 2 + halfAngleFromBottom; // left baseline intersection
+    final sweepAngle = 2 * math.pi - 2 * halfAngleFromBottom; // over the top to the right intersection
     canvas.drawArc(
       Rect.fromCircle(center: basketCenter, radius: arcRadius),
-      3.4, // ~195deg, roughly past the sideline break
-      2.6,
+      startAngle,
+      sweepAngle,
       false,
       line,
     );
-
-    // Rim.
-    canvas.drawCircle(basketCenter, size.width * 0.02, line);
   }
 
   @override

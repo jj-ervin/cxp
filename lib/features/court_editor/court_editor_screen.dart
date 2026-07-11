@@ -10,17 +10,93 @@ import 'basketball_court_painter.dart';
 import 'frame_playback_screen.dart';
 import 'play_library_screen.dart';
 
-enum _EditorMode { select, draw }
+/// A tool in the persistent side rail — the select/move arrow plus one
+/// tool per `PathType`. Replaces the earlier Select/Move-vs-Draw-Route
+/// segmented toggle + separate path-type dropdown (CXP.06) after direct
+/// coach feedback: "used to Photoshop/LibreCAD, a sidebar of tools that
+/// knows what you're doing" — clicking a tool both switches mode *and*
+/// picks what it draws, one action instead of two. See `DEV-PATH.md`'s
+/// CXP.20 entry.
+enum _Tool { select, ball, pass, dribble, cut, screen, shot, defense }
 
-/// CXP.04/CXP.06/CXP.07/CXP.15 — basketball court editor prototype.
+extension on _Tool {
+  /// Null for `select` and `ball` — neither draws a path. `ball` is a
+  /// tap-to-assign tool (see `_setBallHolder`), not a draw tool, so it's
+  /// deliberately excluded from `_isDrawMode`'s definition even though it
+  /// isn't `select` either.
+  PathType? get pathType {
+    switch (this) {
+      case _Tool.select:
+      case _Tool.ball:
+        return null;
+      case _Tool.pass:
+        return PathType.pass;
+      case _Tool.dribble:
+        return PathType.dribble;
+      case _Tool.cut:
+        return PathType.cut;
+      case _Tool.screen:
+        return PathType.screen;
+      case _Tool.shot:
+        return PathType.shot;
+      case _Tool.defense:
+        return PathType.defense;
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _Tool.select:
+        return Icons.pan_tool_alt;
+      case _Tool.ball:
+        return Icons.sports_basketball;
+      case _Tool.pass:
+        return Icons.arrow_forward;
+      case _Tool.dribble:
+        return Icons.gesture;
+      case _Tool.cut:
+        return Icons.trending_up;
+      case _Tool.screen:
+        return Icons.block;
+      case _Tool.shot:
+        return Icons.adjust;
+      case _Tool.defense:
+        return Icons.shield_outlined;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case _Tool.select:
+        return 'Select / Move';
+      case _Tool.ball:
+        return 'Ball';
+      case _Tool.pass:
+        return 'Pass';
+      case _Tool.dribble:
+        return 'Dribble';
+      case _Tool.cut:
+        return 'Cut';
+      case _Tool.screen:
+        return 'Screen';
+      case _Tool.shot:
+        return 'Shot';
+      case _Tool.defense:
+        return 'Defense';
+    }
+  }
+}
+
+/// CXP.04/CXP.06/CXP.07/CXP.15/CXP.16/CXP.20 — basketball court editor
+/// prototype.
 ///
 /// CXP.04: drag-and-drop players on a single frame (select/move).
-/// CXP.06: route drawing (pass/dribble/cut/screen/shot/defense) as a
-/// distinct **mode**, not a gesture disambiguated on the same tokens —
-/// `docs/architecture/ux-philosophy.md` flags select-vs-move-vs-draw as
-/// the hardest interaction problem in this editor; a mode toggle (the
-/// same pattern most pro diagram tools use — a "select tool" vs. a "pen
-/// tool") is the deliberately simple first answer, not the final one.
+/// CXP.06/CXP.20: route drawing (pass/dribble/cut/screen/shot/defense) via
+/// a persistent tool rail (see `_Tool` above) — `docs/architecture/
+/// ux-philosophy.md` flags select-vs-move-vs-draw as the hardest
+/// interaction problem in this editor; a tool palette (the same pattern
+/// Photoshop/Illustrator/LibreCAD use) is the current answer, not
+/// necessarily the final one.
 /// CXP.07: multiple frames. Adding a frame duplicates the current frame's
 /// actor positions (a coach places players, adds a frame, moves them) but
 /// *not* its drawn paths — paths are per-frame coaching annotations, not
@@ -31,7 +107,8 @@ enum _EditorMode { select, draw }
 /// CXP.15: local persistence via `PlayRepository` — Save writes the
 /// current frames under the play's id (new id if this is a fresh play);
 /// the library icon opens `PlayLibraryScreen` to load or delete a
-/// previously saved play. No export yet (CXP.16).
+/// previously saved play.
+/// CXP.16: PDF playbook export via `Printing.layoutPdf`.
 class CourtEditorScreen extends StatefulWidget {
   const CourtEditorScreen({super.key, PlayRepository? repository})
     : repository = repository ?? const _DefaultRepository();
@@ -65,8 +142,7 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
   int _currentFrameIndex = 0;
 
   String? _selectedActorId;
-  _EditorMode _mode = _EditorMode.select;
-  PathType _drawPathType = PathType.pass;
+  _Tool _activeTool = _Tool.select;
 
   String? _dragStartActorId;
   List<Offset> _previewPoints = const [];
@@ -74,8 +150,13 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
   String? _currentPlayId;
   String _currentPlayName = 'Untitled Play';
 
+  bool get _isDrawMode => _activeTool.pathType != null;
+  bool get _isBallTool => _activeTool == _Tool.ball;
+  PathType get _drawPathType => _activeTool.pathType ?? PathType.pass;
+
   List<CourtActor> get _actors => _frames[_currentFrameIndex].actors;
   List<ActorPath> get _paths => _frames[_currentFrameIndex].paths;
+  String? get _ballHolderId => _frames[_currentFrameIndex].ballHolderId;
 
   void _updateCurrentFrame(PlayFrameData Function(PlayFrameData frame) update) {
     setState(() {
@@ -83,6 +164,14 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
         for (var i = 0; i < _frames.length; i++)
           if (i == _currentFrameIndex) update(_frames[i]) else _frames[i],
       ];
+    });
+  }
+
+  void _selectTool(_Tool tool) {
+    setState(() {
+      _activeTool = tool;
+      _dragStartActorId = null;
+      _previewPoints = const [];
     });
   }
 
@@ -104,8 +193,22 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
   }
 
   void _onTapActor(String actorId) {
+    if (_isBallTool) {
+      _setBallHolder(actorId);
+      return;
+    }
     setState(() {
       _selectedActorId = _selectedActorId == actorId ? null : actorId;
+    });
+  }
+
+  /// Tap a player with the Ball tool active to give them the ball;
+  /// tapping the current holder again clears it. One designated holder
+  /// per frame — matches how a coach actually diagrams it, not a
+  /// free-floating ball position (see `PlayFrameData.ballHolderId`).
+  void _setBallHolder(String actorId) {
+    _updateCurrentFrame((frame) {
+      return frame.copyWith(ballHolderId: frame.ballHolderId == actorId ? null : actorId);
     });
   }
 
@@ -189,9 +292,30 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
     );
   }
 
+  /// CXP.21 (real coach feedback): if an actor has a drawn path in the
+  /// current frame (a cut, a screen, a drive), the *next* frame should
+  /// start them at the path's endpoint, not their pre-move position —
+  /// otherwise the coach has to re-drag every player to match the arrow
+  /// they just drew, which is exactly backwards. An actor with no drawn
+  /// path keeps their current position unchanged, same as before.
+  CourtActor _advanceToPathEnd(CourtActor actor, List<ActorPath> paths) {
+    ActorPath? lastPath;
+    for (final path in paths) {
+      if (path.actorId == actor.id) lastPath = path;
+    }
+    if (lastPath == null || lastPath.points.isEmpty) return actor;
+    final destination = lastPath.points.last;
+    return actor.copyWith(x: destination.dx, y: destination.dy);
+  }
+
   void _addFrame() {
     setState(() {
-      final duplicated = PlayFrameData(actors: _actors);
+      final currentFrame = _frames[_currentFrameIndex];
+      final advancedActors = [
+        for (final actor in currentFrame.actors) _advanceToPathEnd(actor, currentFrame.paths),
+      ];
+      final advancedBallHolder = _advanceBallHolder(currentFrame.ballHolderId, currentFrame.paths, currentFrame.actors);
+      final duplicated = PlayFrameData(actors: advancedActors, ballHolderId: advancedBallHolder);
       _frames = [
         ..._frames.sublist(0, _currentFrameIndex + 1),
         duplicated,
@@ -223,10 +347,10 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
     });
   }
 
-  CourtActor? _nearestActor(Offset fractionalPoint, {double thresholdFraction = 0.08}) {
+  CourtActor? _nearestActor(Offset fractionalPoint, {double thresholdFraction = 0.08, List<CourtActor>? among}) {
     CourtActor? nearest;
     var bestDistance = double.infinity;
-    for (final actor in _actors) {
+    for (final actor in among ?? _actors) {
       final distance = (Offset(actor.x, actor.y) - fractionalPoint).distance;
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -234,6 +358,34 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
       }
     }
     return bestDistance <= thresholdFraction ? nearest : null;
+  }
+
+  /// If the current ball holder threw a `pass` in this frame and it lands
+  /// near another player, the ball follows the pass into the next frame.
+  /// Any other path type (dribble, cut, ...) or no path at all means the
+  /// same player carries the ball forward.
+  ///
+  /// Deliberately searches `originalActors` (pre-`_advanceToPathEnd`
+  /// positions), not the advanced ones, and excludes the passer: a passer
+  /// who cuts to a new spot gets advanced to their own path's endpoint by
+  /// `_advanceToPathEnd`, which can land them almost exactly on top of
+  /// the actual receiver — searching the advanced list let the passer
+  /// match themself as "nearest" and the ball never transferred. The
+  /// receiver is whoever was standing near the pass's landing spot *at
+  /// the time of the pass*, not wherever players end up after everyone's
+  /// own paths are applied.
+  String? _advanceBallHolder(String? currentHolderId, List<ActorPath> paths, List<CourtActor> originalActors) {
+    if (currentHolderId == null) return null;
+    ActorPath? holderPath;
+    for (final path in paths) {
+      if (path.actorId == currentHolderId) holderPath = path;
+    }
+    if (holderPath == null || holderPath.type != PathType.pass || holderPath.points.isEmpty) {
+      return currentHolderId;
+    }
+    final candidates = originalActors.where((a) => a.id != currentHolderId).toList();
+    final receiver = _nearestActor(holderPath.points.last, thresholdFraction: 0.1, among: candidates);
+    return receiver?.id ?? currentHolderId;
   }
 
   void _onDrawPanStart(DragStartDetails details, Size courtSize) {
@@ -283,7 +435,6 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDrawMode = _mode == _EditorMode.draw;
     return Scaffold(
       appBar: AppBar(
         title: Text(_currentPlayName),
@@ -331,35 +482,6 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SegmentedButton<_EditorMode>(
-                  segments: const [
-                    ButtonSegment(value: _EditorMode.select, label: Text('Select/Move'), icon: Icon(Icons.pan_tool_alt)),
-                    ButtonSegment(value: _EditorMode.draw, label: Text('Draw Route'), icon: Icon(Icons.timeline)),
-                  ],
-                  selected: {_mode},
-                  onSelectionChanged: (selection) => setState(() => _mode = selection.first),
-                ),
-                if (isDrawMode)
-                  DropdownButton<PathType>(
-                    value: _drawPathType,
-                    items: [
-                      for (final type in PathType.values)
-                        DropdownMenuItem(value: type, child: Text(type.name)),
-                    ],
-                    onChanged: (type) {
-                      if (type != null) setState(() => _drawPathType = type);
-                    },
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
                 Expanded(
@@ -389,54 +511,136 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
             ),
           ),
           Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: AspectRatio(
-                  aspectRatio: 0.94, // roughly a basketball half-court's proportions
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final courtSize = Size(constraints.maxWidth, constraints.maxHeight);
-                      final preview = _dragStartActorId == null
-                          ? null
-                          : ActorPath(actorId: _dragStartActorId!, type: _drawPathType, points: _previewPoints);
-                      return Stack(
-                        children: [
-                          Positioned.fill(
-                            child: CustomPaint(painter: const BasketballCourtPainter()),
-                          ),
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: BasketballPathsPainter(paths: _paths, preview: preview),
-                            ),
-                          ),
-                          if (isDrawMode)
-                            Positioned.fill(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onPanStart: (details) => _onDrawPanStart(details, courtSize),
-                                onPanUpdate: (details) => _onDrawPanUpdate(details, courtSize),
-                                onPanEnd: _onDrawPanEnd,
-                              ),
-                            ),
-                          for (final actor in _actors)
-                            _ActorToken(
-                              actor: actor,
-                              courtSize: courtSize,
-                              selected: actor.id == _selectedActorId,
-                              ignoring: isDrawMode,
-                              onTap: () => _onTapActor(actor.id),
-                              onPanUpdate: (details) => _onPanUpdate(actor.id, details, courtSize),
-                            ),
-                        ],
-                      );
-                    },
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ToolRail(activeTool: _activeTool, onToolSelected: _selectTool),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: AspectRatio(
+                        aspectRatio: 0.94, // roughly a basketball half-court's proportions
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final courtSize = Size(constraints.maxWidth, constraints.maxHeight);
+                            final preview = _dragStartActorId == null
+                                ? null
+                                : ActorPath(actorId: _dragStartActorId!, type: _drawPathType, points: _previewPoints);
+                            return Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: CustomPaint(painter: const BasketballCourtPainter()),
+                                ),
+                                Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: BasketballPathsPainter(paths: _paths, preview: preview),
+                                  ),
+                                ),
+                                if (_isDrawMode)
+                                  Positioned.fill(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onPanStart: (details) => _onDrawPanStart(details, courtSize),
+                                      onPanUpdate: (details) => _onDrawPanUpdate(details, courtSize),
+                                      onPanEnd: _onDrawPanEnd,
+                                    ),
+                                  ),
+                                for (final actor in _actors)
+                                  _ActorToken(
+                                    actor: actor,
+                                    courtSize: courtSize,
+                                    selected: actor.id == _selectedActorId,
+                                    hasBall: actor.id == _ballHolderId,
+                                    ignoring: _isDrawMode,
+                                    onTap: () => _onTapActor(actor.id),
+                                    onPanUpdate: (details) => _onPanUpdate(actor.id, details, courtSize),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Persistent tool palette — Photoshop/Illustrator/LibreCAD-style, per
+/// direct coach feedback (see `DEV-PATH.md` CXP.20). Each tool button both
+/// switches the active tool and (for draw tools) picks the path type in
+/// one click, instead of a mode toggle plus a separate dropdown.
+class _ToolRail extends StatelessWidget {
+  const _ToolRail({required this.activeTool, required this.onToolSelected});
+
+  final _Tool activeTool;
+  final ValueChanged<_Tool> onToolSelected;
+
+  static const _drawTools = [
+    _Tool.pass,
+    _Tool.dribble,
+    _Tool.cut,
+    _Tool.screen,
+    _Tool.shot,
+    _Tool.defense,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: SizedBox(
+        width: 56,
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            _ToolButton(tool: _Tool.select, active: activeTool == _Tool.select, onSelected: onToolSelected),
+            _ToolButton(tool: _Tool.ball, active: activeTool == _Tool.ball, onSelected: onToolSelected),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+            for (final tool in _drawTools)
+              _ToolButton(tool: tool, active: activeTool == tool, onSelected: onToolSelected),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({required this.tool, required this.active, required this.onSelected});
+
+  final _Tool tool;
+  final bool active;
+  final ValueChanged<_Tool> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Tooltip(
+        message: tool.label,
+        child: InkWell(
+          onTap: () => onSelected(tool),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: active ? colorScheme.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Icon(tool.icon, color: active ? colorScheme.onPrimary : colorScheme.onSurfaceVariant),
+          ),
+        ),
       ),
     );
   }
@@ -450,6 +654,7 @@ class _ActorToken extends StatelessWidget {
     required this.onTap,
     required this.onPanUpdate,
     this.ignoring = false,
+    this.hasBall = false,
   });
 
   final CourtActor actor;
@@ -458,11 +663,15 @@ class _ActorToken extends StatelessWidget {
   final VoidCallback onTap;
   final ValueChanged<DragUpdateDetails> onPanUpdate;
 
-  /// True while the editor is in Draw Route mode — the token must not
-  /// intercept the full-canvas route-drawing gesture. `Positioned` must
-  /// stay the direct `Stack` child, so this wraps the `GestureDetector`
-  /// inside, not the `Positioned` itself.
+  /// True while a draw tool is active — the token must not intercept the
+  /// full-canvas route-drawing gesture. `Positioned` must stay the direct
+  /// `Stack` child, so this wraps the `GestureDetector` inside, not the
+  /// `Positioned` itself.
   final bool ignoring;
+
+  /// Renders a small basketball badge on the token — see
+  /// `PlayFrameData.ballHolderId`.
+  final bool hasBall;
 
   static const double _tokenSize = 36;
 
@@ -477,18 +686,42 @@ class _ActorToken extends StatelessWidget {
         child: GestureDetector(
           onTap: onTap,
           onPanUpdate: onPanUpdate,
-          child: Container(
+          child: SizedBox(
             width: _tokenSize,
             height: _tokenSize,
-            decoration: BoxDecoration(
-              shape: isOffense ? BoxShape.circle : BoxShape.rectangle,
-              color: isOffense ? Colors.blue.shade700 : Colors.red.shade700,
-              border: selected ? Border.all(color: Colors.yellowAccent, width: 3) : null,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              actor.label,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: _tokenSize,
+                  height: _tokenSize,
+                  decoration: BoxDecoration(
+                    shape: isOffense ? BoxShape.circle : BoxShape.rectangle,
+                    color: isOffense ? Colors.blue.shade700 : Colors.red.shade700,
+                    border: selected ? Border.all(color: Colors.yellowAccent, width: 3) : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    actor.label,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+                if (hasBall)
+                  Positioned(
+                    key: ValueKey('ball-badge-${actor.id}'),
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.orange.shade800,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

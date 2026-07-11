@@ -17,19 +17,19 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 
 ## CURRENT POSITION
 
-**Active phase:** Phase 7 — v0.1 MVP prototype complete (editor side)
+**Active phase:** Phase 8 — acting on first real coach feedback
 **Active tracks:** none yet (single-track)
-**Current version:** pre-v0.1 — all four MVP pillars (court editor, frame
-animation, play database, PDF export) have a working prototype, but
-nothing has been tried on a real device or by a real coach yet
+**Current version:** pre-v0.1 — first real coach (15 years AAU boys
+basketball + community ed) tried the web build directly and gave
+concrete feedback; four items acted on same-session (tool rail, court
+geometry fix, frame-add path-endpoint advance, ball marker)
 **Next release target:** none committed — see Open Questions in
-`CXP-OVERVIEW.md` and the "first milestone" discussion in session history
+`CXP-OVERVIEW.md`
 
 **P0 blockers — must resolve before any new feature work:**
 
-- *(none)* — but the honest next step per the milestone conversation is
-  trying the app on web with a real coach before adding more scope, not
-  continuing to build unvalidated features.
+- *(none)* — next step is getting the same coach to re-test the fixes
+  live, not building further ahead of feedback.
 
 ---
 
@@ -50,6 +50,7 @@ nothing has been tried on a real device or by a real coach yet
 | Multi-frame sequencing + playback | pre-v0.1 | — | ✅ |
 | Local play persistence (play database) | v0.1 | — | ✅ |
 | PDF playbook export | v0.1 | — | ✅ |
+| First real coach validation pass (tool rail, geometry fix, path-endpoint advance, ball marker) | pre-v0.1 | — | ✅ |
 | PNG/SVG export | v0.2 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
@@ -60,19 +61,28 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| — | Try the app on web with a real coach (validation, not a build task) | — | P0 |
+| — | Get the coach to re-test the fixes live (validation, not a build task) | — | P0 |
+| CXP.23 | Ball marker in `FramePlaybackScreen` | — | P1 |
 | CXP.12 | Real-device/release-mode profiling of animation perf spike | — | P1 (blocked on device/toolchain access) |
 | CXP.17 | Play search/tags/folders | — | P1 |
 | CXP.18 | PNG/SVG export | — | P2 |
 | CXP.19 | Path-style fidelity parity (editor vs. PDF) | — | P2 |
 | CXP.13 | Curved path rendering | — | P2 |
 | CXP.14 | Per-path delete/edit | — | P2 |
+| CXP.24 | "Lite" tool-mode variant for a future SKU tier | — | P2 |
 | CXP.11 | Wire SKU enforcement into Core's authorization layer | — | P2 (blocked on Core existing) |
 
 ---
 
 ## RECENTLY COMPLETED
 
+- CXP.20/21/22 — First real coach feedback pass: tool rail replacing the
+  mode toggle + dropdown, frame-add now advances actors to their drawn
+  path's endpoint, ball marker (`ballHolderId`, Ball tool, pass-triggered
+  transfer), and a real court-geometry bug fix (free-throw circle radius,
+  three-point arc angles) — the PDF export's already-correct proportions
+  were deliberately left untouched. `flutter analyze` clean, 29/29 tests
+  passing (2026-07-10)
 - CXP.16 — PDF playbook export: `buildPlaybookPdf()` + `Printing.layoutPdf`
   wiring; PNG/SVG explicitly deferred (CXP.18); `flutter analyze` clean,
   25/25 tests passing. **This completes all four v0.1 MVP pillars named

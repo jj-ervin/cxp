@@ -81,21 +81,18 @@ void main() {
     }
   });
 
-  group('CXP.06 route drawing', () {
-    testWidgets('switching to Draw Route mode reveals the path-type picker', (
-      WidgetTester tester,
-    ) async {
+  group('CXP.20 tool rail', () {
+    testWidgets('exposes Select/Move plus all six path-drawing tools', (WidgetTester tester) async {
       await tester.pumpWidget(const CxpApp());
 
-      expect(find.byType(DropdownButton<PathType>), findsNothing);
-
-      await tester.tap(find.text('Draw Route'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(DropdownButton<PathType>), findsOneWidget);
+      for (final label in ['Select / Move', 'Pass', 'Dribble', 'Cut', 'Screen', 'Shot', 'Defense']) {
+        expect(find.byTooltip(label), findsOneWidget, reason: 'missing tool: $label');
+      }
     });
+  });
 
-    testWidgets('dragging from an actor in Draw mode records a path (enables Undo)', (
+  group('CXP.06 route drawing', () {
+    testWidgets('dragging from an actor with the Pass tool active records a path (enables Undo)', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(const CxpApp());
@@ -103,7 +100,7 @@ void main() {
       final undoButtonFinder = find.widgetWithIcon(IconButton, Icons.undo);
       expect(tester.widget<IconButton>(undoButtonFinder).onPressed, isNull);
 
-      await tester.tap(find.text('Draw Route'));
+      await tester.tap(find.byTooltip('Pass'));
       await tester.pumpAndSettle();
 
       // Offense actor "1" sits near the top-left of the default frame
@@ -127,7 +124,7 @@ void main() {
     testWidgets('Reset clears drawn paths as well as actor positions', (WidgetTester tester) async {
       await tester.pumpWidget(const CxpApp());
 
-      await tester.tap(find.text('Draw Route'));
+      await tester.tap(find.byTooltip('Pass'));
       await tester.pumpAndSettle();
 
       final startTokenCenter = tester.getCenter(find.text('1'));
@@ -181,7 +178,7 @@ void main() {
       await tester.pumpWidget(const CxpApp());
 
       // Draw a path on Frame 1.
-      await tester.tap(find.text('Draw Route'));
+      await tester.tap(find.byTooltip('Pass'));
       await tester.pumpAndSettle();
       final startTokenCenter = tester.getCenter(find.text('1'));
       final gesture = await tester.startGesture(startTokenCenter);
@@ -473,6 +470,108 @@ void main() {
       await tester.pumpWidget(const CxpApp());
 
       expect(find.widgetWithIcon(IconButton, Icons.picture_as_pdf_outlined), findsOneWidget);
+    });
+  });
+
+  group('CXP.21 frame-add advances actors to their drawn path endpoint', () {
+    testWidgets('an actor with a drawn path starts the next frame at the path end, not the old spot', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      final startCenter = tester.getCenter(find.text('1'));
+
+      await tester.tap(find.byTooltip('Pass'));
+      await tester.pumpAndSettle();
+
+      const dragOffset = Offset(120, 90);
+      final gesture = await tester.startGesture(startCenter);
+      await gesture.moveBy(dragOffset);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Still on Frame 1 — token "1" has not moved (paths are drawn,
+      // not applied to the current frame's actor position).
+      expect(tester.getCenter(find.text('1')), startCenter);
+
+      await tester.tap(find.byTooltip('Select / Move'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      // On the new frame, token "1" should now sit at (approximately)
+      // where the drawn path ended, not back at its Frame-1 position.
+      final newCenter = tester.getCenter(find.text('1'));
+      expect((newCenter - (startCenter + dragOffset)).distance, lessThan(20));
+      expect((newCenter - startCenter).distance, greaterThan(50));
+    });
+
+    testWidgets('an actor with no drawn path keeps its position when a frame is added', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      final startCenter = tester.getCenter(find.text('X1'));
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      expect(tester.getCenter(find.text('X1')), startCenter);
+    });
+  });
+
+  group('CXP.21 ball marker', () {
+    testWidgets('Ball tool assigns and clears a ball-holder badge on tap', (WidgetTester tester) async {
+      await tester.pumpWidget(const CxpApp());
+
+      final badgeFinder = find.byKey(const ValueKey('ball-badge-off_0'));
+      expect(badgeFinder, findsNothing);
+
+      await tester.tap(find.byTooltip('Ball'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1'));
+      await tester.pumpAndSettle();
+
+      expect(badgeFinder, findsOneWidget);
+
+      // Tapping the same holder again clears it.
+      await tester.tap(find.text('1'));
+      await tester.pumpAndSettle();
+      expect(badgeFinder, findsNothing);
+    });
+
+    testWidgets('a pass from the ball holder transfers the ball to the receiver on the next frame', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const CxpApp());
+
+      // Give actor "1" the ball.
+      await tester.tap(find.byTooltip('Ball'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ball-badge-off_0')), findsOneWidget);
+
+      // Draw a pass from "1" directly onto actor "2"'s token.
+      await tester.tap(find.byTooltip('Pass'));
+      await tester.pumpAndSettle();
+      final fromCenter = tester.getCenter(find.text('1'));
+      final toCenter = tester.getCenter(find.text('2'));
+      final gesture = await tester.startGesture(fromCenter);
+      await gesture.moveTo(toCenter);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Select / Move'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
+      await tester.pumpAndSettle();
+
+      // The ball should now belong to actor "2" (off_1), not "1".
+      expect(find.byKey(const ValueKey('ball-badge-off_0')), findsNothing);
+      expect(find.byKey(const ValueKey('ball-badge-off_1')), findsOneWidget);
     });
   });
 }
