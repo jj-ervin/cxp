@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cxp/main.dart';
 import 'package:cxp/data/play_repository.dart';
+import 'package:cxp/export/playbook_pdf_exporter.dart';
 import 'package:cxp/features/court_editor/animation_perf_spike_screen.dart';
 import 'package:cxp/features/court_editor/court_editor_screen.dart';
 import 'package:cxp/features/court_editor/frame_playback_screen.dart';
@@ -405,6 +406,73 @@ void main() {
 
       final all = await repo.loadAll();
       expect(all.map((p) => p.name).toSet(), {'First Play', 'Second Play'});
+    });
+  });
+
+  group('CXP.16 PDF export', () {
+    // These test the pure-Dart PDF byte generation directly. They
+    // deliberately do NOT drive the "Export PDF" app-bar button via
+    // widget tap — Printing.layoutPdf talks to a platform channel with no
+    // real implementation in this test harness, the same reason CXP.03's
+    // perf spike is validated as a functional pass rather than a full
+    // device test. The button's presence is checked by finder only.
+
+    test('produces non-empty bytes with a valid PDF header for a single frame, no paths', () async {
+      final bytes = await buildPlaybookPdf(playName: 'Test Play', frames: defaultPlayFrames());
+
+      expect(bytes, isNotEmpty);
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    });
+
+    test('produces one page per frame across a multi-frame play', () async {
+      final frames = [
+        PlayFrameData(actors: defaultBasketballFrame()),
+        PlayFrameData(actors: stressTestFrames(frameCount: 2)[1]),
+        PlayFrameData(actors: defaultBasketballFrame()),
+      ];
+      final bytes = await buildPlaybookPdf(playName: 'Three Frames', frames: frames);
+
+      // /Type /Page (without the trailing s of /Pages) appears once per
+      // page object in a pdf-package-generated document — a reasonable,
+      // if approximate, structural check without pulling in a PDF parser.
+      final content = String.fromCharCodes(bytes);
+      final pageObjectCount = RegExp(r'/Type\s*/Page[^s]').allMatches(content).length;
+      expect(pageObjectCount, 3);
+    });
+
+    test('does not throw for every PathType, including dashed and screen-bar styles', () async {
+      final actors = defaultBasketballFrame();
+      final paths = [
+        for (final type in PathType.values)
+          ActorPath(actorId: actors.first.id, type: type, points: [const Offset(0.2, 0.2), const Offset(0.7, 0.6)]),
+      ];
+      final bytes = await buildPlaybookPdf(
+        playName: 'All Path Types',
+        frames: [PlayFrameData(actors: actors, paths: paths)],
+      );
+
+      expect(bytes, isNotEmpty);
+    });
+
+    test('does not throw for a zero-length path (identical start/end points)', () async {
+      final actors = defaultBasketballFrame();
+      final bytes = await buildPlaybookPdf(
+        playName: 'Degenerate Path',
+        frames: [
+          PlayFrameData(
+            actors: actors,
+            paths: [ActorPath(actorId: actors.first.id, type: PathType.pass, points: const [Offset(0.5, 0.5), Offset(0.5, 0.5)])],
+          ),
+        ],
+      );
+
+      expect(bytes, isNotEmpty);
+    });
+
+    testWidgets('Export PDF button is present in the app bar', (WidgetTester tester) async {
+      await tester.pumpWidget(const CxpApp());
+
+      expect(find.widgetWithIcon(IconButton, Icons.picture_as_pdf_outlined), findsOneWidget);
     });
   });
 }

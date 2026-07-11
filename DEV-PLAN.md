@@ -17,15 +17,19 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 
 ## CURRENT POSITION
 
-**Active phase:** Phase 1 — Flutter skeleton + editor prototype
+**Active phase:** Phase 7 — v0.1 MVP prototype complete (editor side)
 **Active tracks:** none yet (single-track)
-**Current version:** pre-v0.1 (architecture documented, no app code yet)
-**Next release target:** none committed — see Open Questions in `CXP-OVERVIEW.md`
+**Current version:** pre-v0.1 — all four MVP pillars (court editor, frame
+animation, play database, PDF export) have a working prototype, but
+nothing has been tried on a real device or by a real coach yet
+**Next release target:** none committed — see Open Questions in
+`CXP-OVERVIEW.md` and the "first milestone" discussion in session history
 
 **P0 blockers — must resolve before any new feature work:**
 
-- *(none)* — architecture week (CXP.02) is done; proceeding to CXP.05
-  (Flutter skeleton) and CXP.04 (court editor prototype).
+- *(none)* — but the honest next step per the milestone conversation is
+  trying the app on web with a real coach before adding more scope, not
+  continuing to build unvalidated features.
 
 ---
 
@@ -45,7 +49,8 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 | Route/path drawing (straight lines, 6 types) | pre-v0.1 | — | ✅ |
 | Multi-frame sequencing + playback | pre-v0.1 | — | ✅ |
 | Local play persistence (play database) | v0.1 | — | ✅ |
-| PDF/PNG/SVG playbook export | v0.1 | — | ⬜ |
+| PDF playbook export | v0.1 | — | ✅ |
+| PNG/SVG export | v0.2 | — | ⬜ |
 
 Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
@@ -55,9 +60,11 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 | ID | Task | Track | Priority |
 | --- | --- | --- | --- |
-| CXP.16 | PDF/PNG/SVG playbook export | — | P0 |
+| — | Try the app on web with a real coach (validation, not a build task) | — | P0 |
 | CXP.12 | Real-device/release-mode profiling of animation perf spike | — | P1 (blocked on device/toolchain access) |
 | CXP.17 | Play search/tags/folders | — | P1 |
+| CXP.18 | PNG/SVG export | — | P2 |
+| CXP.19 | Path-style fidelity parity (editor vs. PDF) | — | P2 |
 | CXP.13 | Curved path rendering | — | P2 |
 | CXP.14 | Per-path delete/edit | — | P2 |
 | CXP.11 | Wire SKU enforcement into Core's authorization layer | — | P2 (blocked on Core existing) |
@@ -66,6 +73,11 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 ## RECENTLY COMPLETED
 
+- CXP.16 — PDF playbook export: `buildPlaybookPdf()` + `Printing.layoutPdf`
+  wiring; PNG/SVG explicitly deferred (CXP.18); `flutter analyze` clean,
+  25/25 tests passing. **This completes all four v0.1 MVP pillars named
+  in `CXP-OVERVIEW.md`** (court editor, frame animation, play database,
+  PDF export) at prototype level (2026-07-10)
 - CXP.15 — Local play persistence: `SavedPlay`/`PlayRepository`/
   `PlayLibraryScreen`, Save dialog with new-vs-overwrite semantics;
   identity-provider federation (SSO/MFA) SKU boundary decided and

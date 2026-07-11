@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 
 import '../../data/play_repository.dart';
+import '../../export/playbook_pdf_exporter.dart';
 import '../../models/play_frame.dart';
 import '../../models/saved_play.dart';
 import 'animation_perf_spike_screen.dart';
@@ -176,6 +178,17 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
     _updateCurrentFrame((frame) => frame.copyWith(paths: frame.paths.sublist(0, frame.paths.length - 1)));
   }
 
+  /// CXP.16. Builds the PDF in pure Dart (unit-tested directly in
+  /// `test/widget_test.dart` with no platform dependency), then hands the
+  /// bytes to `Printing.layoutPdf`, which owns the actual save/share/print
+  /// UX per-platform (including a browser download on web) — this widget
+  /// does not implement per-platform file I/O itself.
+  Future<void> _exportPdf() async {
+    await Printing.layoutPdf(
+      onLayout: (_) => buildPlaybookPdf(playName: _currentPlayName, frames: _frames),
+    );
+  }
+
   void _addFrame() {
     setState(() {
       final duplicated = PlayFrameData(actors: _actors);
@@ -284,6 +297,11 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
             onPressed: _saveCurrentPlay,
             icon: const Icon(Icons.save_outlined),
             tooltip: 'Save play',
+          ),
+          IconButton(
+            onPressed: _exportPdf,
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Export PDF playbook',
           ),
           IconButton(
             onPressed: _paths.isEmpty ? null : _undoLastPath,

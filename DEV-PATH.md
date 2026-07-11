@@ -446,6 +446,81 @@ v0.1 MVP definition — nothing survived an app restart until this pass.
 
 ---
 
+### Phase 7 — PDF playbook export (2026-07-10)
+
+**Goal:** Close the last piece of `CXP-OVERVIEW.md`'s v0.1 MVP
+definition — "beautiful PDF playbook export," the fourth of the four
+named pillars (court editor, frame animation, play database, PDF export).
+
+**Key decisions:**
+
+- **PDF only this pass — PNG and SVG explicitly deferred (CXP.18).**
+  `CXP-OVERVIEW.md` names PDF specifically as the MVP-critical format;
+  PNG/SVG appear only in the fuller "Export to PNG, PDF, SVG..." list
+  elsewhere. Rather than half-implement three formats, this pass finishes
+  one properly. No mature, well-maintained Flutter package exists for
+  writing SVG (only reading, via `flutter_svg`), so SVG export would need
+  hand-rolled XML generation — a real but separate piece of work.
+- **`package:pdf` + `package:printing`.** `pdf` builds the document in
+  pure Dart (no platform dependency — this is what makes the byte
+  generation unit-testable without a device or emulator). `printing`
+  owns the actual save/share/print UX per platform, including a browser
+  download on web, so this prototype does not hand-roll per-platform file
+  I/O — the same reasoning that picked `shared_preferences` over
+  `sqflite` for CXP.15 (work identically across all six scaffolded
+  targets with minimal platform-specific code).
+- **Reimplemented court/path rendering against `PdfGraphics`, not
+  reused from `basketball_court_painter.dart`.** Flutter's `Canvas` and
+  `package:pdf`'s `PdfGraphics` are different APIs with no shared
+  abstraction — this is a deliberate, bounded duplication (rect/ellipse/
+  line/dash/arrowhead primitives re-expressed against the PDF drawing
+  calls), not a reuse failure. The actor tokens, by contrast, **are**
+  built with `pw.Stack`/`pw.Positioned`/`pw.Container` — `package:pdf`'s
+  widget API deliberately mirrors Flutter's, so that part *did* reuse the
+  same structural approach as `_ActorToken`, just re-expressed in `pw.*`
+  types.
+- **Reduced path styling fidelity vs. the live editor, stated
+  explicitly, not silently accepted.** The PDF version does not
+  reproduce the live editor's full six-way visual distinction — dashed
+  vs. solid and arrowhead vs. screen-bar are preserved, but exact colors/
+  weights differ slightly. Logged as CXP.19 rather than treated as done.
+- **One page per frame**, with the play name as a header and "Frame N of
+  M" as a subheader — the minimum viable version of "play numbering" and
+  "coaching notes" named in `CXP-OVERVIEW.md`'s export requirements; full
+  coaching-notes metadata isn't captured by the editor yet, so it isn't
+  in the export either.
+- **Not widget-tested via a real button tap.** Same reasoning as CXP.03:
+  `Printing.layoutPdf` talks to a platform channel with no real
+  implementation in this test harness, so tapping it would throw
+  `MissingPluginException`, not exercise real behavior. Tests instead
+  call `buildPlaybookPdf()` directly (pure Dart, fully testable) and
+  check only that the export button exists via finder — stated
+  explicitly rather than silently skipped.
+
+**Completed:**
+
+- CXP.16 — PDF playbook export: `buildPlaybookPdf()`
+  (`lib/export/playbook_pdf_exporter.dart`), wired to the court editor's
+  app bar via `Printing.layoutPdf`. `flutter analyze` clean; 25/25 tests
+  passing (5 new: PDF header validity, page-count-matches-frame-count,
+  all six `PathType`s render without throwing, degenerate zero-length
+  path doesn't throw, export button present in the app bar).
+
+**Carried forward:**
+
+- CXP.18 — PNG/SVG export
+- CXP.19 — Full path-style fidelity parity between the live editor and
+  the PDF export
+- CXP.13, CXP.14, CXP.12, CXP.17 (unchanged)
+
+**v0.1 MVP status:** all four `CXP-OVERVIEW.md` pillars (court editor,
+frame animation, play database, PDF export) now have a working
+prototype. Nothing here has been tried on a real device, and per the
+"first milestone" discussion, the honest next step is trying this on web
+with a real coach before adding more scope.
+
+---
+
 ## TASK REGISTRY
 
 | ID | Name | Status | Phase | Notes |
@@ -462,8 +537,10 @@ v0.1 MVP definition — nothing survived an app restart until this pass.
 | CXP.13 | Curved path rendering | planned | 4 | Straight-line only today; `ActorPath.points` shape allows this later |
 | CXP.14 | Per-path delete/edit | planned | 4 | Only whole-list undo/clear exists today |
 | CXP.15 | Local play persistence (play database) | done | 6 | `SavedPlay`, `PlayRepository`, `PlayLibraryScreen`, Save dialog; `flutter analyze`/`flutter test` clean (20/20) |
-| CXP.16 | PDF/PNG/SVG playbook export | planned | 6 | Last v0.1 MVP piece per `CXP-OVERVIEW.md` |
+| CXP.16 | PDF playbook export | done | 7 | `buildPlaybookPdf()` + `Printing.layoutPdf`; `flutter analyze`/`flutter test` clean (25/25) |
 | CXP.17 | Play search/tags/folders | planned | 6 | Library is a flat list today |
+| CXP.18 | PNG/SVG export | planned | 7 | Deferred — PDF is the MVP-critical format |
+| CXP.19 | Path-style fidelity parity (editor vs. PDF) | planned | 7 | PDF export has reduced styling fidelity today |
 | CXP.08 | Add macOS/Linux/Android/iOS platform targets | done | 2 | Folders scaffolded; only web currently buildable on this machine |
 | CXP.09 | Domain-agnostic Core / Vertical Pack split | done | 2 | `domain-model.md`, `module-boundaries.md` revised |
 | CXP.10 | SKU model | done | 2 | `sku-model.md`, `sku-inheritance.yaml` |
