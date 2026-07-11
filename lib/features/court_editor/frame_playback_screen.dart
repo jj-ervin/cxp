@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/play_frame.dart';
+import '../../models/court_configuration.dart';
 import 'basketball_court_painter.dart';
 
 /// CXP.07 — plays back a real play's frames (actor motion only; drawn
@@ -9,12 +10,18 @@ import 'basketball_court_painter.dart';
 /// runs the sequence once (play/pause/restart), not an infinite
 /// stress loop, and has no timing instrumentation.
 class FramePlaybackScreen extends StatefulWidget {
-  const FramePlaybackScreen({super.key, required this.frames, this.secondsPerSegment = 1.2});
+  const FramePlaybackScreen({
+    super.key,
+    required this.frames,
+    this.secondsPerSegment = 1.2,
+    this.courtConfiguration = CourtConfiguration.defaultValue,
+  });
 
   /// Actor positions per frame — `frames[i]` and `frames[i + 1]` must
   /// hold the same actor ids in the same order (see `lerpFrame`).
   final List<List<CourtActor>> frames;
   final double secondsPerSegment;
+  final CourtConfiguration courtConfiguration;
 
   @override
   State<FramePlaybackScreen> createState() => _FramePlaybackScreenState();
@@ -54,7 +61,8 @@ class _FramePlaybackScreenState extends State<FramePlaybackScreen>
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: AspectRatio(
-                  aspectRatio: 0.94,
+                  aspectRatio:
+                      widget.courtConfiguration.dimensions.widthFeet / widget.courtConfiguration.displayedLengthFeet,
                   child: AnimatedBuilder(
                     animation: _controller,
                     builder: (context, _) {
@@ -62,7 +70,9 @@ class _FramePlaybackScreenState extends State<FramePlaybackScreen>
                       return Stack(
                         children: [
                           Positioned.fill(
-                            child: CustomPaint(painter: const BasketballCourtPainter()),
+                            child: CustomPaint(
+                              painter: BasketballCourtPainter(configuration: widget.courtConfiguration),
+                            ),
                           ),
                           Positioned.fill(
                             child: CustomPaint(painter: _PlaybackActorsPainter(actors: actors)),

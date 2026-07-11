@@ -1,7 +1,7 @@
 # DEV-RELEASE — CXP (Coach Experience Platform)
 
 **AUTHORITY LEVEL: AL:2**
-**Status:** Scaffold — no release gates yet, no code exists
+**Status:** Prototype implementation — no public release gate committed
 **Created:** 2026-07-10
 **Authority:** Owned by this repo. Sequencing and cross-repo dependencies,
 if any emerge, defer to [`docs/DEV-RELEASE.md`](../docs/DEV-RELEASE.md)
@@ -11,10 +11,10 @@ if any emerge, defer to [`docs/DEV-RELEASE.md`](../docs/DEV-RELEASE.md)
 
 ## Current State Summary
 
-CXP is in **Phase 0 — Scoping** (see `DEV-PATH.md`). A full scoping
-conversation has been captured in `CXP-OVERVIEW.md`. Nothing has been
-built. This file exists so the repo has a GC-conformant release doc from
-day one — it intentionally has no release contract yet.
+CXP is in **Phase 9 — configurable basketball playing surfaces** (see
+`DEV-PATH.md`). The basketball editor, frame playback, local persistence,
+and PDF export exist as tested prototypes. No public release target or
+distribution gate has been committed yet.
 
 ---
 
@@ -28,18 +28,22 @@ Per this portfolio's gap-closure principle (see
 3. **Mechanism is observable** — some signal is emitted when it runs
 4. **Mechanism is discoverable** — a stranger can find and understand it
 
-None of the four apply yet — there is no mechanism.
+The prototype mechanisms and regression tests exist. Public packaging,
+installation evidence, support posture, and release observability remain
+unproven.
 
 ---
 
-## Release v0.1 — Basketball MVP (not started)
+## Release v0.1 — Basketball MVP (prototype in progress)
 
-**Status:** Planned — blocked on the architecture week (CXP.02 in
-`DEV-PLAN.md`)
+**Status:** In progress — architecture week is complete; prototype MVP
+pillars exist, but release/admission criteria are not yet satisfied.
 
 ### What would ship
 
 - Drag-and-drop basketball court editor
+- Regulation-aware court configuration (NBA/NCAA/high school/middle
+  school/FIBA/custom; half/full; hardwood/blacktop)
 - Frame-based play animation
 - Searchable play database
 - PDF/PNG/SVG playbook export

@@ -676,6 +676,7 @@ bug above).
 | CXP.22 | Court geometry fix (free-throw circle, 3PT arc) | done | 8 | Real coach feedback; PDF export intentionally left unchanged (already confirmed correct) |
 | CXP.23 | Ball marker in `FramePlaybackScreen` | planned | 8 | Not rendered during animated playback yet |
 | CXP.24 | "Lite" tool-mode variant for a future SKU tier | planned | 8 | Coach's suggestion, not acted on now |
+| CXP.25 | Configurable basketball courts | done | 9 | NBA/NCAA/high-school/middle-school/FIBA/custom boundaries; half/full; hardwood/blacktop; persisted and exported |
 
 Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` · `unknown_needs_audit`
 
@@ -693,3 +694,41 @@ Status values: `planned` · `in_progress` · `blocked` · `done` · `deferred` �
 - Current plan file: `DEV-PLAN.md`
 - Tracks file required: no (single-track scaffold; add `DEV-TRACKS.md` if
   parallel workstreams emerge)
+
+---
+
+### Phase 9 — Configurable basketball playing surfaces (2026-07-10)
+
+**Goal:** Replace the prototype's single hard-coded NBA-like half court
+with a saved, regulation-aware court configuration that supports the
+environments coaches actually use.
+
+**Key decisions:**
+
+- Court standard, extent, and surface are separate choices. Outdoor
+  blacktop is a surface treatment, not a competing regulation standard,
+  so it can be paired with NBA, NCAA, high-school, middle-school, FIBA,
+  or custom boundaries.
+- Regulation presets store measurements in feet and rendering derives
+  proportions from the selected boundary. Presets: NBA (94×50), NCAA
+  (94×50), US high school (84×50), representative US middle school
+  (74×42), and FIBA/European (28×15m represented in feet).
+- Custom configuration exposes full length and width while retaining NBA
+  line measurements as an explicit prototype default. A later refinement
+  may expose every individual marking measurement.
+- Court configuration belongs to `SavedPlay`, not individual frames: a
+  play uses one surface while player and path coordinates remain normalized
+  and therefore survive configuration changes without migration.
+- Full-court rendering draws both basket ends, midcourt line, and center
+  circle. The same configuration drives editor, playback, persistence,
+  and PDF export.
+
+**Completed:**
+
+- CXP.25 — `CourtConfiguration`, regulation presets, half/full and
+  hardwood/blacktop selection, custom boundary entry, regulation-aware
+  painter, saved-play compatibility, playback/PDF propagation, and tests.
+
+**Validation:** 35/35 Flutter tests passing, including preset dimensions,
+custom JSON round-trip, UI selection/save, legacy save compatibility, and
+the existing editor/persistence/export regression suite.

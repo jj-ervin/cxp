@@ -5,10 +5,12 @@ import 'package:cxp/main.dart';
 import 'package:cxp/data/play_repository.dart';
 import 'package:cxp/export/playbook_pdf_exporter.dart';
 import 'package:cxp/features/court_editor/animation_perf_spike_screen.dart';
+import 'package:cxp/features/court_editor/basketball_court_painter.dart';
 import 'package:cxp/features/court_editor/court_editor_screen.dart';
 import 'package:cxp/features/court_editor/frame_playback_screen.dart';
 import 'package:cxp/features/court_editor/play_library_screen.dart';
 import 'package:cxp/models/play_frame.dart';
+import 'package:cxp/models/court_configuration.dart';
 import 'package:cxp/models/saved_play.dart';
 
 /// In-memory `PlayRepository` for CXP.15 tests — avoids touching the real
@@ -34,6 +36,105 @@ class _FakePlayRepository implements PlayRepository {
 }
 
 void main() {
+  group('Court configuration', () {
+    test('regulation presets expose their expected boundaries', () {
+      expect(dimensionsFor(CourtStandard.nba).lengthFeet, 94);
+      expect(dimensionsFor(CourtStandard.ncaa).widthFeet, 50);
+      expect(dimensionsFor(CourtStandard.highSchool).lengthFeet, 84);
+      expect(dimensionsFor(CourtStandard.middleSchool).widthFeet, 42);
+      expect(dimensionsFor(CourtStandard.fiba).lengthFeet, closeTo(91.86, 0.001));
+    });
+
+    test('custom full blacktop configuration round-trips through JSON', () {
+      const dimensions = CourtDimensions(
+        lengthFeet: 80,
+        widthFeet: 44,
+        laneWidthFeet: 12,
+        freeThrowLineFeet: 19,
+        threePointRadiusFeet: 20,
+        cornerThreeDistanceFeet: 19,
+        basketOffsetFeet: 5.25,
+        restrictedArcRadiusFeet: 0,
+      );
+      const original = CourtConfiguration(
+        standard: CourtStandard.custom,
+        extent: CourtExtent.full,
+        surface: CourtSurface.blacktop,
+        customDimensions: dimensions,
+      );
+
+      final restored = CourtConfiguration.fromJson(original.toJson());
+
+      expect(restored.standard, CourtStandard.custom);
+      expect(restored.extent, CourtExtent.full);
+      expect(restored.surface, CourtSurface.blacktop);
+      expect(restored.dimensions.lengthFeet, 80);
+      expect(restored.displayedLengthFeet, 80);
+    });
+
+    testWidgets('every regulation preset paints in half and full court without throwing', (
+      WidgetTester tester,
+    ) async {
+      for (final standard in CourtStandard.values.where((value) => value != CourtStandard.custom)) {
+        for (final extent in CourtExtent.values) {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: SizedBox(
+                width: 500,
+                height: extent == CourtExtent.full ? 940 : 470,
+                child: CustomPaint(
+                  painter: BasketballCourtPainter(
+                    configuration: CourtConfiguration(standard: standard, extent: extent),
+                  ),
+                ),
+              ),
+            ),
+          );
+          expect(tester.takeException(), isNull, reason: '${standard.name}/${extent.name}');
+        }
+      }
+    });
+
+    testWidgets('court configuration control applies and saves regulation, extent, and surface choices', (
+      WidgetTester tester,
+    ) async {
+      final repo = _FakePlayRepository();
+      await tester.pumpWidget(MaterialApp(home: CourtEditorScreen(repository: repo)));
+
+      await tester.tap(find.byTooltip('Court configuration'));
+      await tester.pumpAndSettle();
+      expect(find.text('Court configuration'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('court-standard')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FIBA / European').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('court-extent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Full court').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('court-surface')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Outdoor blacktop').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.save_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Configured court');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      final saved = (await repo.loadAll()).single;
+      expect(saved.courtConfiguration.standard, CourtStandard.fiba);
+      expect(saved.courtConfiguration.extent, CourtExtent.full);
+      expect(saved.courtConfiguration.surface, CourtSurface.blacktop);
+    });
+  });
+
   testWidgets('App shell renders the court editor prototype', (WidgetTester tester) async {
     await tester.pumpWidget(const CxpApp());
 
@@ -283,6 +384,11 @@ void main() {
           PlayFrameData(actors: stressTestFrames(frameCount: 2)[1]),
         ],
         createdAt: DateTime.utc(2026, 7, 10, 12, 0),
+        courtConfiguration: const CourtConfiguration(
+          standard: CourtStandard.highSchool,
+          extent: CourtExtent.full,
+          surface: CourtSurface.blacktop,
+        ),
       );
 
       final restored = SavedPlay.fromJson(original.toJson());
@@ -294,6 +400,25 @@ void main() {
       expect(restored.frames.first.paths.single.type, PathType.pass);
       expect(restored.frames.first.paths.single.points.first.dx, closeTo(0.1, 1e-9));
       expect(restored.frames.first.actors.length, original.frames.first.actors.length);
+      expect(restored.courtConfiguration.standard, CourtStandard.highSchool);
+      expect(restored.courtConfiguration.extent, CourtExtent.full);
+      expect(restored.courtConfiguration.surface, CourtSurface.blacktop);
+    });
+
+    test('SavedPlay defaults older JSON without court configuration to NBA half hardwood', () {
+      final json = SavedPlay(
+        id: 'legacy',
+        name: 'Legacy',
+        frames: defaultPlayFrames(),
+        createdAt: DateTime.utc(2026, 7, 10),
+      ).toJson()
+        ..remove('courtConfiguration');
+
+      final restored = SavedPlay.fromJson(json);
+
+      expect(restored.courtConfiguration.standard, CourtStandard.nba);
+      expect(restored.courtConfiguration.extent, CourtExtent.half);
+      expect(restored.courtConfiguration.surface, CourtSurface.hardwood);
     });
 
     test('_FakePlayRepository save/loadAll/delete round-trip (validates the interface contract)', () async {

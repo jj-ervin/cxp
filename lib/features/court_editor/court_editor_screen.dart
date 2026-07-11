@@ -3,6 +3,7 @@ import 'package:printing/printing.dart';
 
 import '../../data/play_repository.dart';
 import '../../export/playbook_pdf_exporter.dart';
+import '../../models/court_configuration.dart';
 import '../../models/play_frame.dart';
 import '../../models/saved_play.dart';
 import 'animation_perf_spike_screen.dart';
@@ -149,6 +150,7 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
 
   String? _currentPlayId;
   String _currentPlayName = 'Untitled Play';
+  CourtConfiguration _courtConfiguration = CourtConfiguration.defaultValue;
 
   bool get _isDrawMode => _activeTool.pathType != null;
   bool get _isBallTool => _activeTool == _Tool.ball;
@@ -224,6 +226,7 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
       // than silently overwrite the play this session started from.
       _currentPlayId = null;
       _currentPlayName = 'Untitled Play';
+      _courtConfiguration = CourtConfiguration.defaultValue;
     });
   }
 
@@ -250,6 +253,7 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
       name: name,
       frames: _frames,
       createdAt: DateTime.now(),
+      courtConfiguration: _courtConfiguration,
     );
     await widget.repository.save(play);
     if (!mounted) return;
@@ -270,6 +274,7 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
       _currentFrameIndex = 0;
       _currentPlayId = selected.id;
       _currentPlayName = selected.name;
+      _courtConfiguration = selected.courtConfiguration;
       _selectedActorId = null;
       _dragStartActorId = null;
       _previewPoints = const [];
@@ -288,8 +293,131 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
   /// does not implement per-platform file I/O itself.
   Future<void> _exportPdf() async {
     await Printing.layoutPdf(
-      onLayout: (_) => buildPlaybookPdf(playName: _currentPlayName, frames: _frames),
+      onLayout: (_) => buildPlaybookPdf(
+        playName: _currentPlayName,
+        frames: _frames,
+        courtConfiguration: _courtConfiguration,
+      ),
     );
+  }
+
+  Future<void> _configureCourt() async {
+    var draft = _courtConfiguration;
+    final lengthController = TextEditingController(text: draft.dimensions.lengthFeet.toStringAsFixed(2));
+    final widthController = TextEditingController(text: draft.dimensions.widthFeet.toStringAsFixed(2));
+    final selected = await showDialog<CourtConfiguration>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void selectStandard(CourtStandard standard) {
+            setDialogState(() {
+              draft = draft.copyWith(standard: standard, clearCustomDimensions: standard != CourtStandard.custom);
+              final dimensions = draft.dimensions;
+              lengthController.text = dimensions.lengthFeet.toStringAsFixed(2);
+              widthController.text = dimensions.widthFeet.toStringAsFixed(2);
+            });
+          }
+
+          return AlertDialog(
+            title: const Text('Court configuration'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<CourtStandard>(
+                    key: const ValueKey('court-standard'),
+                    initialValue: draft.standard,
+                    decoration: const InputDecoration(labelText: 'Standard'),
+                    items: [
+                      for (final standard in CourtStandard.values)
+                        DropdownMenuItem(value: standard, child: Text(standard.label)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) selectStandard(value);
+                    },
+                  ),
+                  DropdownButtonFormField<CourtExtent>(
+                    key: const ValueKey('court-extent'),
+                    initialValue: draft.extent,
+                    decoration: const InputDecoration(labelText: 'Court'),
+                    items: [
+                      for (final extent in CourtExtent.values)
+                        DropdownMenuItem(value: extent, child: Text(extent.label)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => draft = draft.copyWith(extent: value));
+                    },
+                  ),
+                  DropdownButtonFormField<CourtSurface>(
+                    key: const ValueKey('court-surface'),
+                    initialValue: draft.surface,
+                    decoration: const InputDecoration(labelText: 'Surface'),
+                    items: [
+                      for (final surface in CourtSurface.values)
+                        DropdownMenuItem(value: surface, child: Text(surface.label)),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => draft = draft.copyWith(surface: value));
+                    },
+                  ),
+                  if (draft.standard == CourtStandard.custom) ...[
+                    TextField(
+                      key: const ValueKey('court-length'),
+                      controller: lengthController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Full length (feet)'),
+                    ),
+                    TextField(
+                      key: const ValueKey('court-width'),
+                      controller: widthController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Width (feet)'),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Custom courts use NBA line measurements, scaled to the entered boundary.'),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    '${draft.dimensions.lengthFeet.toStringAsFixed(2)} × '
+                    '${draft.dimensions.widthFeet.toStringAsFixed(2)} ft regulation boundary',
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () {
+                  if (draft.standard == CourtStandard.custom) {
+                    final length = double.tryParse(lengthController.text);
+                    final width = double.tryParse(widthController.text);
+                    if (length == null || width == null || length <= 0 || width <= 0) return;
+                    final base = dimensionsFor(CourtStandard.nba);
+                    draft = draft.copyWith(
+                      customDimensions: CourtDimensions(
+                        lengthFeet: length,
+                        widthFeet: width,
+                        laneWidthFeet: base.laneWidthFeet,
+                        freeThrowLineFeet: base.freeThrowLineFeet,
+                        threePointRadiusFeet: base.threePointRadiusFeet,
+                        cornerThreeDistanceFeet: base.cornerThreeDistanceFeet,
+                        basketOffsetFeet: base.basketOffsetFeet,
+                        restrictedArcRadiusFeet: base.restrictedArcRadiusFeet,
+                      ),
+                    );
+                  }
+                  Navigator.of(context).pop(draft);
+                },
+                child: const Text('Apply'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    lengthController.dispose();
+    widthController.dispose();
+    if (selected != null && mounted) setState(() => _courtConfiguration = selected);
   }
 
   /// CXP.21 (real coach feedback): if an actor has a drawn path in the
@@ -466,6 +594,11 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
             tooltip: 'Export PDF playbook',
           ),
           IconButton(
+            onPressed: _configureCourt,
+            icon: const Icon(Icons.tune),
+            tooltip: 'Court configuration',
+          ),
+          IconButton(
             onPressed: _paths.isEmpty ? null : _undoLastPath,
             icon: const Icon(Icons.undo),
             tooltip: 'Undo last path',
@@ -474,7 +607,10 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
           IconButton(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => FramePlaybackScreen(frames: [for (final f in _frames) f.actors]),
+                builder: (_) => FramePlaybackScreen(
+                  frames: [for (final f in _frames) f.actors],
+                  courtConfiguration: _courtConfiguration,
+                ),
               ),
             ),
             icon: const Icon(Icons.play_arrow),
@@ -531,7 +667,7 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: AspectRatio(
-                        aspectRatio: 0.94, // roughly a basketball half-court's proportions
+                        aspectRatio: _courtConfiguration.dimensions.widthFeet / _courtConfiguration.displayedLengthFeet,
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final courtSize = Size(constraints.maxWidth, constraints.maxHeight);
@@ -541,7 +677,9 @@ class _CourtEditorScreenState extends State<CourtEditorScreen> {
                             return Stack(
                               children: [
                                 Positioned.fill(
-                                  child: CustomPaint(painter: const BasketballCourtPainter()),
+                                  child: CustomPaint(
+                                    painter: BasketballCourtPainter(configuration: _courtConfiguration),
+                                  ),
                                 ),
                                 Positioned.fill(
                                   child: CustomPaint(

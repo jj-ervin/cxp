@@ -2,18 +2,23 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../models/court_configuration.dart';
 import '../../models/play_frame.dart';
 
 /// Basketball sport pack playing surface (half-court, offensive end).
 /// Sport-pack-owned per `docs/architecture/plugin-architecture.md` — the
 /// editor's core canvas has no opinion on what a "court" looks like.
 class BasketballCourtPainter extends CustomPainter {
-  const BasketballCourtPainter();
+  const BasketballCourtPainter({this.configuration = CourtConfiguration.defaultValue});
+
+  final CourtConfiguration configuration;
 
   @override
   void paint(Canvas canvas, Size size) {
     final court = Paint()
-      ..color = const Color(0xFFDDB27A)
+      ..color = configuration.surface == CourtSurface.blacktop
+          ? const Color(0xFF46515A)
+          : const Color(0xFFDDB27A)
       ..style = PaintingStyle.fill;
     final line = Paint()
       ..color = Colors.white
@@ -24,54 +29,87 @@ class BasketballCourtPainter extends CustomPainter {
     canvas.drawRect(rect, court);
     canvas.drawRect(rect.deflate(1), line);
 
-    // Key / paint (free-throw lane), centered on the baseline. Real
-    // proportions (half-court ~50ft wide x 47ft long): 16ft lane width,
-    // ~19ft lane length.
-    final laneWidth = size.width * 0.32; // 16/50
-    final laneHeight = size.height * 0.40; // 19/47
-    final lane = Rect.fromLTWH(
+    final dimensions = configuration.dimensions;
+    final xScale = size.width / dimensions.widthFeet;
+    final yScale = size.height / configuration.displayedLengthFeet;
+
+    _drawBasketEnd(canvas, size, line, dimensions, xScale, yScale, baselineAtBottom: true);
+    if (configuration.extent == CourtExtent.full) {
+      _drawBasketEnd(canvas, size, line, dimensions, xScale, yScale, baselineAtBottom: false);
+      canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), line);
+      canvas.drawCircle(Offset(size.width / 2, size.height / 2), 6 * xScale, line);
+    } else {
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(size.width / 2, 0), radius: 6 * xScale),
+        0,
+        math.pi,
+        false,
+        line,
+      );
+    }
+  }
+
+  void _drawBasketEnd(
+    Canvas canvas,
+    Size size,
+    Paint line,
+    CourtDimensions dimensions,
+    double xScale,
+    double yScale, {
+    required bool baselineAtBottom,
+  }) {
+    double yFromBaseline(double feet) => baselineAtBottom ? size.height - feet * yScale : feet * yScale;
+    final laneWidth = dimensions.laneWidthFeet * xScale;
+    final laneEndY = yFromBaseline(dimensions.freeThrowLineFeet);
+    final lane = Rect.fromLTRB(
       (size.width - laneWidth) / 2,
-      size.height - laneHeight,
-      laneWidth,
-      laneHeight,
+      math.min(yFromBaseline(0), laneEndY),
+      (size.width + laneWidth) / 2,
+      math.max(yFromBaseline(0), laneEndY),
     );
     canvas.drawRect(lane, line);
 
-    // Free-throw circle. Real radius ~6ft on a ~50ft-wide court = 12% of
-    // width — deliberately NOT `laneWidth / 2` (that ties the circle to
-    // the lane's 16ft width, producing a circle a third too large; a
-    // real coach caught this — see DEV-PATH.md CXP.22).
-    final ftCenter = Offset(size.width / 2, lane.top);
-    final freeThrowRadius = size.width * 0.12;
-    canvas.drawCircle(ftCenter, freeThrowRadius, line);
+    final freeThrowCenter = Offset(size.width / 2, laneEndY);
+    canvas.drawCircle(freeThrowCenter, 6 * xScale, line);
 
-    // Rim, ~5.25ft from the baseline on a 47ft-long half-court.
-    final basketCenter = Offset(size.width / 2, size.height - size.height * 0.11);
-    canvas.drawCircle(basketCenter, size.width * 0.02, line);
+    final basketCenter = Offset(size.width / 2, yFromBaseline(dimensions.basketOffsetFeet));
+    canvas.drawCircle(basketCenter, 0.75 * xScale, line);
 
-    // Three-point arc. Real radius ~23.75ft on a 50ft-wide court = 47.5%
-    // of width. Rather than hand-guessed start/sweep radians (the
-    // previous version's actual bug — those two magic numbers didn't
-    // correspond to any real geometry), derive the start/sweep angles
-    // from where the arc should meet the baseline, so the arc is always
-    // geometrically consistent regardless of court aspect ratio.
-    final arcRadius = size.width * 0.475;
-    final baselineY = size.height * 0.99;
-    final verticalReach = (baselineY - basketCenter.dy).clamp(-arcRadius, arcRadius);
-    final halfAngleFromBottom = math.asin(verticalReach / arcRadius);
-    final startAngle = math.pi / 2 + halfAngleFromBottom; // left baseline intersection
-    final sweepAngle = 2 * math.pi - 2 * halfAngleFromBottom; // over the top to the right intersection
+    if (dimensions.restrictedArcRadiusFeet > 0) {
+      final radius = dimensions.restrictedArcRadiusFeet * xScale;
+      canvas.drawArc(
+        Rect.fromCircle(center: basketCenter, radius: radius),
+        baselineAtBottom ? math.pi : 0,
+        math.pi,
+        false,
+        line,
+      );
+    }
+
+    final arcRadiusX = dimensions.threePointRadiusFeet * xScale;
+    final arcRadiusY = dimensions.threePointRadiusFeet * yScale;
+    final cornerX = dimensions.cornerThreeDistanceFeet * xScale;
+    final leftCornerX = size.width / 2 - cornerX;
+    final rightCornerX = size.width / 2 + cornerX;
+    final intersectionAlongY = arcRadiusY * math.sqrt(math.max(0, 1 - (cornerX * cornerX) / (arcRadiusX * arcRadiusX)));
+    final intersectionY = baselineAtBottom ? basketCenter.dy - intersectionAlongY : basketCenter.dy + intersectionAlongY;
+    canvas.drawLine(Offset(leftCornerX, yFromBaseline(0)), Offset(leftCornerX, intersectionY), line);
+    canvas.drawLine(Offset(rightCornerX, yFromBaseline(0)), Offset(rightCornerX, intersectionY), line);
+
+    final cornerAngle = math.acos((cornerX / arcRadiusX).clamp(-1.0, 1.0));
+    final start = baselineAtBottom ? math.pi + cornerAngle : math.pi - cornerAngle;
+    final sweep = math.pi - 2 * cornerAngle;
     canvas.drawArc(
-      Rect.fromCircle(center: basketCenter, radius: arcRadius),
-      startAngle,
-      sweepAngle,
+      Rect.fromCenter(center: basketCenter, width: arcRadiusX * 2, height: arcRadiusY * 2),
+      start,
+      baselineAtBottom ? sweep : -sweep,
       false,
       line,
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant BasketballCourtPainter oldDelegate) => oldDelegate.configuration != configuration;
 }
 
 /// Basketball sport pack path styling (CXP.06). Per

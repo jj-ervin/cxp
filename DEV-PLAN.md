@@ -17,7 +17,7 @@ Do not create competing root planning files with alternate names (`devplan`, `DE
 
 ## CURRENT POSITION
 
-**Active phase:** Phase 8 — acting on first real coach feedback
+**Active phase:** Phase 9 — configurable basketball playing surfaces
 **Active tracks:** none yet (single-track)
 **Current version:** pre-v0.1 — first real coach (15 years AAU boys
 basketball + community ed) tried the web build directly and gave
@@ -76,6 +76,10 @@ Status key: ✅ Done · 🔄 In progress · ⬜ Planned · ❌ Blocked
 
 ## RECENTLY COMPLETED
 
+- CXP.25 — Court configuration: NBA, NCAA, high-school, middle-school,
+  FIBA/European, and custom boundaries; half/full court; indoor hardwood
+  and outdoor blacktop; saved with the play and propagated through editor,
+  playback, and PDF export. 35/35 tests passing (2026-07-10)
 - CXP.20/21/22 — First real coach feedback pass: tool rail replacing the
   mode toggle + dropdown, frame-add now advances actors to their drawn
   path's endpoint, ball marker (`ballHolderId`, Ball tool, pass-triggered

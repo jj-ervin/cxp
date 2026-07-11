@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/play_frame.dart';
+import '../models/court_configuration.dart';
 
 /// CXP.16 — the "beautiful PDF playbook export" pillar named in
 /// `CXP-OVERVIEW.md`'s v0.1 MVP definition. One page per frame; each page
@@ -19,9 +20,15 @@ import '../models/play_frame.dart';
 ///
 /// PNG and SVG export are explicitly out of scope for this pass — see
 /// `DEV-PATH.md`'s CXP.16 entry for why, tracked as CXP.18.
-Future<Uint8List> buildPlaybookPdf({required String playName, required List<PlayFrameData> frames}) async {
+Future<Uint8List> buildPlaybookPdf({
+  required String playName,
+  required List<PlayFrameData> frames,
+  CourtConfiguration courtConfiguration = CourtConfiguration.defaultValue,
+}) async {
   final doc = pw.Document();
-  const diagramSize = PdfPoint(420, 400);
+  final aspectRatio = courtConfiguration.dimensions.widthFeet / courtConfiguration.displayedLengthFeet;
+  final diagramWidth = math.min(420.0, 600 * aspectRatio);
+  final diagramSize = PdfPoint(diagramWidth, diagramWidth / aspectRatio);
 
   for (var i = 0; i < frames.length; i++) {
     final frame = frames[i];
@@ -44,7 +51,7 @@ Future<Uint8List> buildPlaybookPdf({required String playName, required List<Play
                     pw.Positioned.fill(
                       child: pw.CustomPaint(
                         size: diagramSize,
-                        painter: (canvas, size) => _paintCourtAndPaths(canvas, size, frame),
+                        painter: (canvas, size) => _paintCourtAndPaths(canvas, size, frame, courtConfiguration),
                       ),
                     ),
                     for (final actor in frame.actors)
@@ -98,10 +105,19 @@ pw.Widget _actorToken(CourtActor actor, PdfPoint size, {bool hasBall = false}) {
   );
 }
 
-void _paintCourtAndPaths(PdfGraphics canvas, PdfPoint size, PlayFrameData frame) {
+void _paintCourtAndPaths(
+  PdfGraphics canvas,
+  PdfPoint size,
+  PlayFrameData frame,
+  CourtConfiguration configuration,
+) {
   // Court surface + boundary.
   canvas
-    ..setColor(const PdfColor.fromInt(0xFFDDB27A))
+    ..setColor(
+      configuration.surface == CourtSurface.blacktop
+          ? const PdfColor.fromInt(0xFF46515A)
+          : const PdfColor.fromInt(0xFFDDB27A),
+    )
     ..drawRect(0, 0, size.x, size.y)
     ..fillPath()
     ..setColor(PdfColors.black)
@@ -109,29 +125,19 @@ void _paintCourtAndPaths(PdfGraphics canvas, PdfPoint size, PlayFrameData frame)
     ..drawRect(1, 1, size.x - 2, size.y - 2)
     ..strokePath();
 
-  // Key / paint, centered on the baseline (PDF y-axis grows upward, so
-  // "baseline" is y=0 here, the opposite visual direction from the
-  // Flutter painter's top-origin canvas — the geometry is mirrored
-  // vertically, which is fine since it's still a symmetric half-court).
-  final laneWidth = size.x * 0.32;
-  final laneHeight = size.y * 0.42;
-  final laneLeft = (size.x - laneWidth) / 2;
-  canvas
-    ..setColor(PdfColors.black)
-    ..drawRect(laneLeft, 0, laneWidth, laneHeight)
-    ..strokePath();
-
-  // Free-throw circle.
-  canvas
-    ..drawEllipse(size.x / 2, laneHeight, laneWidth / 2, laneWidth / 2)
-    ..strokePath();
-
-  // Rim (near the baseline, simplified — no three-point arc for the PDF
-  // pass; the live editor's arc is a nice-to-have this export doesn't
-  // need to match exactly).
-  canvas
-    ..drawEllipse(size.x / 2, size.y * 0.06, size.x * 0.02, size.x * 0.02)
-    ..strokePath();
+  final dimensions = configuration.dimensions;
+  final xScale = size.x / dimensions.widthFeet;
+  final yScale = size.y / configuration.displayedLengthFeet;
+  _paintPdfBasketEnd(canvas, size, dimensions, xScale, yScale, baselineAtBottom: true);
+  if (configuration.extent == CourtExtent.full) {
+    _paintPdfBasketEnd(canvas, size, dimensions, xScale, yScale, baselineAtBottom: false);
+    canvas
+      ..moveTo(0, size.y / 2)
+      ..lineTo(size.x, size.y / 2)
+      ..strokePath()
+      ..drawEllipse(size.x / 2, size.y / 2, 6 * xScale, 6 * xScale)
+      ..strokePath();
+  }
 
   // Paths.
   for (final path in frame.paths) {
@@ -157,6 +163,51 @@ void _paintCourtAndPaths(PdfGraphics canvas, PdfPoint size, PlayFrameData frame)
       _strokeArrowhead(canvas, start, end);
     }
   }
+}
+
+void _paintPdfBasketEnd(
+  PdfGraphics canvas,
+  PdfPoint size,
+  CourtDimensions dimensions,
+  double xScale,
+  double yScale, {
+  required bool baselineAtBottom,
+}) {
+  double yFromBaseline(double feet) => baselineAtBottom ? feet * yScale : size.y - feet * yScale;
+  final laneWidth = dimensions.laneWidthFeet * xScale;
+  final laneEnd = yFromBaseline(dimensions.freeThrowLineFeet);
+  final laneBottom = math.min(yFromBaseline(0), laneEnd);
+  canvas
+    ..setColor(PdfColors.black)
+    ..drawRect((size.x - laneWidth) / 2, laneBottom, laneWidth, dimensions.freeThrowLineFeet * yScale)
+    ..strokePath()
+    ..drawEllipse(size.x / 2, laneEnd, 6 * xScale, 6 * xScale)
+    ..strokePath();
+
+  final basketY = yFromBaseline(dimensions.basketOffsetFeet);
+  canvas
+    ..drawEllipse(size.x / 2, basketY, 0.75 * xScale, 0.75 * xScale)
+    ..strokePath();
+
+  final radiusX = dimensions.threePointRadiusFeet * xScale;
+  final radiusY = dimensions.threePointRadiusFeet * yScale;
+  final cornerX = dimensions.cornerThreeDistanceFeet * xScale;
+  final leftX = size.x / 2 - cornerX;
+  final rightX = size.x / 2 + cornerX;
+  final intersection = radiusY * math.sqrt(math.max(0, 1 - cornerX * cornerX / (radiusX * radiusX)));
+  final intersectionY = baselineAtBottom ? basketY + intersection : basketY - intersection;
+  canvas
+    ..moveTo(leftX, yFromBaseline(0))
+    ..lineTo(leftX, intersectionY)
+    ..moveTo(rightX, yFromBaseline(0))
+    ..lineTo(rightX, intersectionY)
+    ..strokePath();
+  // PdfGraphics has no elliptical-arc primitive; drawEllipse preserves
+  // regulation radius and custom-court scaling while corner lines make
+  // the selected standard visible in print.
+  canvas
+    ..drawEllipse(size.x / 2, basketY, radiusX, radiusY)
+    ..strokePath();
 }
 
 PdfColor _colorFor(PathType type) {

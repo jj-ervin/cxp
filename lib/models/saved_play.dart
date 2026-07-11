@@ -8,22 +8,31 @@
 /// for what's deliberately deferred.
 library;
 
+import 'court_configuration.dart';
 import 'play_frame.dart';
 
 class SavedPlay {
-  const SavedPlay({required this.id, required this.name, required this.frames, required this.createdAt});
+  const SavedPlay({
+    required this.id,
+    required this.name,
+    required this.frames,
+    required this.createdAt,
+    this.courtConfiguration = CourtConfiguration.defaultValue,
+  });
 
   final String id;
   final String name;
   final List<PlayFrameData> frames;
   final DateTime createdAt;
+  final CourtConfiguration courtConfiguration;
 
-  SavedPlay copyWith({String? name, List<PlayFrameData>? frames}) {
+  SavedPlay copyWith({String? name, List<PlayFrameData>? frames, CourtConfiguration? courtConfiguration}) {
     return SavedPlay(
       id: id,
       name: name ?? this.name,
       frames: frames ?? this.frames,
       createdAt: createdAt,
+      courtConfiguration: courtConfiguration ?? this.courtConfiguration,
     );
   }
 
@@ -33,6 +42,7 @@ class SavedPlay {
       'name': name,
       'frames': [for (final frame in frames) frame.toJson()],
       'createdAt': createdAt.toIso8601String(),
+      'courtConfiguration': courtConfiguration.toJson(),
     };
   }
 
@@ -45,6 +55,9 @@ class SavedPlay {
           PlayFrameData.fromJson(frame as Map<String, dynamic>),
       ],
       createdAt: DateTime.parse(json['createdAt'] as String),
+      courtConfiguration: json['courtConfiguration'] == null
+          ? CourtConfiguration.defaultValue
+          : CourtConfiguration.fromJson(json['courtConfiguration'] as Map<String, dynamic>),
     );
   }
 }
