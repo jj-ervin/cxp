@@ -6,7 +6,7 @@ Then read CXP planning docs in this order:
 
 1. [DEV-PATH.md](DEV-PATH.md) — origin, phase history, design decisions
 2. [DEV-PLAN.md](DEV-PLAN.md) — current execution state, active work queue
-3. [DEV-RELEASE.md](DEV-RELEASE.md) — release posture (scaffold — no release gates yet)
+3. [DEV-RELEASE.md](DEV-RELEASE.md) — prototype release posture — four draft admission criteria remain open
 4. [CXP-OVERVIEW.md](CXP-OVERVIEW.md) — vision, architecture, module map, and full scoping capture (directional, not committed scope)
 5. [docs/architecture/](docs/architecture/) — domain model, module boundaries, security model, AI model, plugin (sport pack) architecture, UX philosophy, SKU model — the architecture-week outputs that govern implementation decisions
 
