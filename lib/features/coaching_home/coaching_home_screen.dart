@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../court_editor/court_editor_screen.dart';
+import '../practice_planner/practice_planner_screen.dart';
 
 /// Small standalone coaching entry point. Team data remains on this device;
 /// this is not an organization account or multi-user roster service.
@@ -178,6 +179,17 @@ class _CoachingHomeScreenState extends State<CoachingHomeScreen> {
                               onPressed: () => _removePlayer(team, i),
                             ),
                           ),
+                        ListTile(
+                          leading: const Icon(Icons.event_note),
+                          title: const Text('Practice planner'),
+                          subtitle: const Text('Build and save timed practices'),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => PracticePlannerScreen(teamId: team.id, teamName: team.name),
+                            ),
+                          ),
+                        ),
                         ListTile(
                           leading: const Icon(Icons.person_add_alt),
                           title: const Text('Add player'),
