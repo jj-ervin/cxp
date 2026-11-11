@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'drill_library_screen.dart';
 
 class PracticePlannerScreen extends StatefulWidget {
   const PracticePlannerScreen({super.key, required this.teamId, required this.teamName});
@@ -12,16 +13,6 @@ class PracticePlannerScreen extends StatefulWidget {
 }
 
 class _PracticePlannerScreenState extends State<PracticePlannerScreen> {
-  static const drills = <(String, int)>[
-    ('Dynamic warm-up', 10),
-    ('Ball handling stations', 15),
-    ('Form shooting', 10),
-    ('Passing and cutting', 15),
-    ('Defensive slides and closeouts', 15),
-    ('3-on-3 advantage game', 20),
-    ('Controlled scrimmage', 20),
-    ('Free throws and cool-down', 10),
-  ];
   final title = TextEditingController(text: 'Next practice');
   final activities = <_Activity>[];
   final plans = <_Practice>[];
@@ -73,7 +64,7 @@ class _PracticePlannerScreenState extends State<PracticePlannerScreen> {
     }
     setState(() => saving = true);
     final id = editingId ?? DateTime.now().microsecondsSinceEpoch.toString();
-    final next = _Practice(id, name, activities.map((a) => _Activity(a.name, a.minutes)).toList());
+    final next = _Practice(id, name, activities.map((a) => _Activity(a.name, a.minutes, drillId: a.drillId)).toList());
     final index = plans.indexWhere((p) => p.id == id);
     if (index < 0) {
       plans.add(next);
@@ -124,11 +115,21 @@ class _PracticePlannerScreenState extends State<PracticePlannerScreen> {
     if (result != null && mounted) setState(() => activities.add(result));
   }
 
+  Future<void> _browseDrills() async {
+    final selected = await Navigator.push<CoachingDrill>(
+      context,
+      MaterialPageRoute(builder: (_) => const DrillLibraryScreen()),
+    );
+    if (selected != null && mounted) {
+      setState(() => activities.add(_Activity(selected.name, selected.minutes, drillId: selected.id)));
+    }
+  }
+
   void _open(_Practice plan) {
     setState(() {
       editingId = plan.id;
       title.text = plan.title;
-      activities..clear()..addAll(plan.activities.map((a) => _Activity(a.name, a.minutes)));
+      activities..clear()..addAll(plan.activities.map((a) => _Activity(a.name, a.minutes, drillId: a.drillId)));
     });
   }
 
@@ -151,18 +152,18 @@ class _PracticePlannerScreenState extends State<PracticePlannerScreen> {
         TextField(controller: title, maxLength: 100, decoration: const InputDecoration(labelText: 'Practice title', border: OutlineInputBorder())),
         Text('Total: $duration minutes', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        Text('Quick-add drills', style: Theme.of(context).textTheme.titleMedium),
-        Wrap(spacing: 8, runSpacing: 4, children: [
-          for (final drill in drills)
-            ActionChip(label: Text('${drill.$1} · ${drill.$2}m'), onPressed: () => _addActivity(preset: drill.$1, minutes: drill.$2)),
-        ]),
+        FilledButton.icon(onPressed: _browseDrills, icon: const Icon(Icons.menu_book), label: const Text('Browse drill library')),
         const SizedBox(height: 12),
         OutlinedButton.icon(onPressed: () => _addActivity(), icon: const Icon(Icons.add), label: const Text('Custom activity')),
         for (var i = 0; i < activities.length; i++)
           Card(child: ListTile(
             leading: CircleAvatar(child: Text('${i + 1}')),
             title: Text(activities[i].name),
-            subtitle: Text('${activities[i].minutes} minutes'),
+            subtitle: Text('${activities[i].minutes} minutes${activities[i].drillId == null ? '' : ' · Library drill'}'),
+            onTap: activities[i].drillId == null ? null : () {
+              final drill = starterDrills.where((d) => d.id == activities[i].drillId).firstOrNull;
+              if (drill != null) Navigator.push(context, MaterialPageRoute<void>(builder: (_) => DrillDetailScreen(drill: drill)));
+            },
             trailing: IconButton(
               tooltip: 'Remove activity',
               icon: const Icon(Icons.remove_circle_outline),
@@ -191,11 +192,12 @@ class _PracticePlannerScreenState extends State<PracticePlannerScreen> {
 }
 
 class _Activity {
-  _Activity(this.name, this.minutes);
+  _Activity(this.name, this.minutes, {this.drillId});
   final String name;
   final int minutes;
-  factory _Activity.fromJson(Map<String, dynamic> j) => _Activity(j['name'] as String, j['minutes'] as int);
-  Map<String, dynamic> toJson() => {'name': name, 'minutes': minutes};
+  final String? drillId;
+  factory _Activity.fromJson(Map<String, dynamic> j) => _Activity(j['name'] as String, j['minutes'] as int, drillId: j['drillId'] as String?);
+  Map<String, dynamic> toJson() => {'name': name, 'minutes': minutes, if (drillId != null) 'drillId': drillId};
 }
 
 class _Practice {
