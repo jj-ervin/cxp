@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'features/court_editor/court_editor_screen.dart';
+import 'features/coaching_home/coaching_home_screen.dart';
 
 void main() {
   runApp(const CxpApp());
 }
 
-/// App shell (CXP.05) now hosting the court editor prototype (CXP.04).
-/// Still no module wiring beyond this single screen — see DEV-PLAN.md.
+/// Standalone coaching entry point; existing court editor remains available.
 class CxpApp extends StatelessWidget {
   const CxpApp({super.key});
 
@@ -16,7 +15,7 @@ class CxpApp extends StatelessWidget {
     return MaterialApp(
       title: 'CXP',
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange)),
-      home: const CourtEditorScreen(),
+      home: const CoachingHomeScreen(),
     );
   }
 }
