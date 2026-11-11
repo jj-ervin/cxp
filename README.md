@@ -2,7 +2,7 @@
 
 **Status:** basketball coaching prototype — editor, frame actor playback, local play storage and PDF export implemented; no public release.
 
-CXP is a coaching operations workspace scoped under 20Amp Labs, following
+CXP is proprietary software owned by Osprey Strategic Holdings LLC and developed by HBL Creative Studios. Public repository visibility does not grant reuse rights; see [LICENSE](LICENSE).\n\nCXP is a coaching operations workspace following
 the same architectural pattern as this portfolio's DXP work: one core, AI
 as an assistant rather than the product, deterministic tools underneath.
 Basketball is the first sport.
@@ -22,7 +22,7 @@ Governed under this portfolio's `governance-commons/` standards — see
 
 ## Current prototype
 
-The Flutter app opens a basketball court editor with actor dragging, route tools, frame sequencing and ball ownership in the editor. It supports configurable half/full surfaces and saved plays, and can export PDF playbooks. Playback animates actor positions; route animation and playback ball ownership are not implemented. Saved plays use a local SharedPreferences JSON list, without server sync, play revision history, account isolation or search/tags/folders.
+The Flutter app opens a coaching home with local teams and player names, a practice planner and drill library, and access to the basketball court editor. The editor with actor dragging, route tools, frame sequencing and ball ownership in the editor. It supports configurable half/full surfaces and saved plays, and can export PDF playbooks. Playback animates actor positions; route animation and playback ball ownership are not implemented. Saved plays use a local SharedPreferences JSON list, without server sync, play revision history, account isolation or search/tags/folders.
 
 For source checks, use `flutter pub get --enforce-lockfile`, `flutter analyze --no-pub` and `flutter test --no-pub`. Native plugin setup on Windows requires working symlink support. `flutter build web --no-pub` is a web build check, not native/device/performance or installation proof. Six target scaffolds do not establish six supported releases.
 
