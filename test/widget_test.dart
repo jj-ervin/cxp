@@ -135,15 +135,21 @@ void main() {
     });
   });
 
-  testWidgets('App shell renders the court editor prototype', (WidgetTester tester) async {
+  testWidgets('App shell opens coaching home and preserves editor navigation', (WidgetTester tester) async {
     await tester.pumpWidget(const CxpApp());
+    await tester.pumpAndSettle();
 
+    expect(find.text('CXP — Coaching Workspace'), findsOneWidget);
+    expect(find.byType(CourtEditorScreen), findsNothing);
+
+    await tester.tap(find.text('Play Editor'));
+    await tester.pumpAndSettle();
     expect(find.byType(CourtEditorScreen), findsOneWidget);
     expect(find.text('Untitled Play'), findsOneWidget);
   });
 
   testWidgets('Default frame renders 5 offense + 5 defense actors', (WidgetTester tester) async {
-    await tester.pumpWidget(const CxpApp());
+    await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
     // Offense tokens are labeled 1-5, defense X1-X5.
     for (var i = 1; i <= 5; i++) {
@@ -184,7 +190,7 @@ void main() {
 
   group('CXP.20 tool rail', () {
     testWidgets('exposes Select/Move plus all six path-drawing tools', (WidgetTester tester) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       for (final label in ['Select / Move', 'Pass', 'Dribble', 'Cut', 'Screen', 'Shot', 'Defense']) {
         expect(find.byTooltip(label), findsOneWidget, reason: 'missing tool: $label');
@@ -196,7 +202,7 @@ void main() {
     testWidgets('dragging from an actor with the Pass tool active records a path (enables Undo)', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       final undoButtonFinder = find.widgetWithIcon(IconButton, Icons.undo);
       expect(tester.widget<IconButton>(undoButtonFinder).onPressed, isNull);
@@ -223,7 +229,7 @@ void main() {
     });
 
     testWidgets('Reset clears drawn paths as well as actor positions', (WidgetTester tester) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       await tester.tap(find.byTooltip('Pass'));
       await tester.pumpAndSettle();
@@ -249,7 +255,7 @@ void main() {
     testWidgets('starts with exactly one frame chip and a disabled delete button', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       expect(find.text('Frame 1'), findsOneWidget);
       expect(find.text('Frame 2'), findsNothing);
@@ -261,7 +267,7 @@ void main() {
     testWidgets('Add frame appends and selects a new chip; delete becomes enabled', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
       await tester.pumpAndSettle();
@@ -276,7 +282,7 @@ void main() {
     testWidgets('Add frame duplicates actor positions but not drawn paths', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       // Draw a path on Frame 1.
       await tester.tap(find.byTooltip('Pass'));
@@ -305,7 +311,7 @@ void main() {
     testWidgets('Delete frame removes the current frame and clamps selection', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
       await tester.pumpAndSettle();
@@ -320,7 +326,7 @@ void main() {
     });
 
     testWidgets('Reset collapses back to a single frame', (WidgetTester tester) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
       await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
@@ -337,7 +343,7 @@ void main() {
     testWidgets('Play opens FramePlaybackScreen and it runs without error', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       await tester.tap(find.widgetWithIcon(IconButton, Icons.add_box));
       await tester.pumpAndSettle();
@@ -592,7 +598,7 @@ void main() {
     });
 
     testWidgets('Export PDF button is present in the app bar', (WidgetTester tester) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       expect(find.widgetWithIcon(IconButton, Icons.picture_as_pdf_outlined), findsOneWidget);
     });
@@ -602,7 +608,7 @@ void main() {
     testWidgets('an actor with a drawn path starts the next frame at the path end, not the old spot', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       final startCenter = tester.getCenter(find.text('1'));
 
@@ -635,7 +641,7 @@ void main() {
     testWidgets('an actor with no drawn path keeps its position when a frame is added', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       final startCenter = tester.getCenter(find.text('X1'));
 
@@ -648,7 +654,7 @@ void main() {
 
   group('CXP.21 ball marker', () {
     testWidgets('Ball tool assigns and clears a ball-holder badge on tap', (WidgetTester tester) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       final badgeFinder = find.byKey(const ValueKey('ball-badge-off_0'));
       expect(badgeFinder, findsNothing);
@@ -669,7 +675,7 @@ void main() {
     testWidgets('a pass from the ball holder transfers the ball to the receiver on the next frame', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       // Give actor "1" the ball.
       await tester.tap(find.byTooltip('Ball'));
@@ -702,7 +708,7 @@ void main() {
     testWidgets('a pass followed by a cut still transfers the ball to the receiver on the next frame', (
       WidgetTester tester,
     ) async {
-      await tester.pumpWidget(const CxpApp());
+      await tester.pumpWidget(const MaterialApp(home: CourtEditorScreen()));
 
       await tester.tap(find.byTooltip('Ball'));
       await tester.pumpAndSettle();
