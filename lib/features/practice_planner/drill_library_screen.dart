@@ -69,7 +69,10 @@ class _DrillLibraryScreenState extends State<DrillLibraryScreen> {
             subtitle: Text('${drill.minutes} min · ${drill.skill} · ${drill.level}\n${drill.objective}'),
             isThreeLine: true,
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => DrillDetailScreen(drill: drill))),
+            onTap: () async {
+              final chosen = await Navigator.push<CoachingDrill>(context, MaterialPageRoute(builder: (_) => DrillDetailScreen(drill: drill)));
+              if (chosen != null && context.mounted) Navigator.pop(context, chosen);
+            },
           )),
         if (results.isEmpty) const Padding(padding: EdgeInsets.all(20), child: Text('No drills match these filters.')),
       ]),
