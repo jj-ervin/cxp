@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cxp/main.dart';
 import 'package:cxp/data/play_repository.dart';
@@ -136,6 +137,7 @@ void main() {
   });
 
   testWidgets('App shell opens coaching home and preserves editor navigation', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const CxpApp());
     await tester.pumpAndSettle();
 
